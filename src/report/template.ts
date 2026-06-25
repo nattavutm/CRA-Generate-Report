@@ -333,14 +333,20 @@ function attack(model: ReportModel, pg: number, total: number): string {
     l.highRiskDevices.length === 0
       ? `<tr><td colspan="3" class="muted">No high-risk devices returned.</td></tr>`
       : l.highRiskDevices.slice(0, 8).map((d) => `<tr><td>${esc(d.deviceName)}</td><td class="ar">${fmt(d.riskScore)}</td><td>${esc(d.os)}</td></tr>`).join('');
+  const userRows =
+    l.highRiskUsers.length === 0
+      ? `<tr><td colspan="2" class="muted">No high-risk users returned.</td></tr>`
+      : l.highRiskUsers.slice(0, 8).map((u) => `<tr><td>${esc(u.userName)}${u.userPrincipalName ? ` <span class="muted">(${esc(u.userPrincipalName)})</span>` : ''}</td><td class="ar">${fmt(u.riskScore)}</td></tr>`).join('');
   return `<div class="page">${HEADER}
     ${shead('06', 'Attack Overview', 'Detections, prioritized.')}
     <p class="lead">XDR detections and high-risk assets read live from Vision One Workbench and Attack Surface Risk Management for the reporting window.</p>
     <h3>XDR detection summary</h3>
     ${dataNotice(model, 'alerts')}
     <table class="kv"><thead><tr><th>Detection</th><th>Severity</th><th>Entity</th><th>Time (UTC)</th></tr></thead><tbody>${alertRows}</tbody></table>
-    <h3>High-risk assets</h3>
+    <h3>High-risk devices</h3>
     <table class="kv"><thead><tr><th>Device</th><th class="ar">Risk score</th><th>OS</th></tr></thead><tbody>${devRows}</tbody></table>
+    <h3>High-risk users</h3>
+    <table class="kv"><thead><tr><th>User</th><th class="ar">Risk score</th></tr></thead><tbody>${userRows}</tbody></table>
     ${footer(pg, total)}
   </div>`;
 }

@@ -83,6 +83,13 @@ export interface HighRiskDevice {
   riskScore: number;
 }
 
+export interface HighRiskUser {
+  id: string;
+  userName: string;
+  userPrincipalName?: string;
+  riskScore: number;
+}
+
 export interface AlertSummary {
   name: string;
   severity: string;
@@ -140,6 +147,7 @@ export interface LiveData {
   } | null;
   internetFacingCves: InternetFacingCve[];
   highRiskDevices: HighRiskDevice[];
+  highRiskUsers: HighRiskUser[];
   staleAccountCount: number | null;
   alerts: AlertSummary[];
   errors: Record<string, string>;

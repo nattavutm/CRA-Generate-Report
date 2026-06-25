@@ -7,6 +7,7 @@ import type {
   InternetFacingCve,
   DomainAccount,
   HighRiskDevice,
+  HighRiskUser,
   AlertSummary,
 } from '../types';
 
@@ -29,6 +30,13 @@ export function getDomainAccounts(client: V1Client, cap = 20): Promise<DomainAcc
 
 export async function getHighRiskDevices(client: V1Client, top = 20): Promise<HighRiskDevice[]> {
   const res = await client.fetchJson<ListResponse<HighRiskDevice>>('/v3.0/asrm/highRiskDevices', {
+    query: { top, orderBy: 'riskScore desc' },
+  });
+  return res.items ?? [];
+}
+
+export async function getHighRiskUsers(client: V1Client, top = 20): Promise<HighRiskUser[]> {
+  const res = await client.fetchJson<ListResponse<HighRiskUser>>('/v3.0/asrm/highRiskUsers', {
     query: { top, orderBy: 'riskScore desc' },
   });
   return res.items ?? [];
@@ -68,6 +76,14 @@ function entityLabel(scope: RawAlert['impactScope']): string {
   return counts.join(', ') || '—';
 }
 
+// Trend v3 requires ISO 8601 WITHOUT milliseconds (e.g. 2026-05-26T15:00:00Z);
+// a `.000Z` fraction triggers HTTP 400 "not properly formatted" (error 3090003).
+function isoNoMillis(s: string | undefined): string | undefined {
+  if (!s) return undefined;
+  const t = Date.parse(s);
+  return Number.isNaN(t) ? s : new Date(t).toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
 export async function getWorkbenchAlerts(
   client: V1Client,
   range: { startDateTime?: string; endDateTime?: string },
@@ -75,7 +91,7 @@ export async function getWorkbenchAlerts(
 ): Promise<AlertSummary[]> {
   // No server-side orderBy (the param is finicky); sort by severity score client-side.
   const res = await client.fetchJson<ListResponse<RawAlert>>('/v3.0/workbench/alerts', {
-    query: { startDateTime: range.startDateTime, endDateTime: range.endDateTime },
+    query: { startDateTime: isoNoMillis(range.startDateTime), endDateTime: isoNoMillis(range.endDateTime) },
   });
   return (res.items ?? [])
     .map((a) => ({
