@@ -95,6 +95,25 @@ export interface HighRiskUser {
   riskScore: number;
 }
 
+export interface PublicIpAsset {
+  ipAddress: string;
+  latestRiskScore?: number;
+  criticality?: string;
+  provider?: string;
+  highCveCount?: number;
+  services?: unknown[];
+}
+
+export interface CloudAsset {
+  assetName: string;
+  assetType?: string;
+  provider?: string;
+  region?: string;
+  criticality?: string;
+  latestRiskScore?: number;
+  protectionStatus?: string;
+}
+
 export interface AlertSummary {
   name: string;
   severity: string;
@@ -153,6 +172,8 @@ export interface LiveData {
   internetFacingCves: InternetFacingCve[];
   internalCves: InternetFacingCve[];
   topAccounts: DomainAccount[];
+  publicIps: PublicIpAsset[];
+  cloudAssets: CloudAsset[];
   highRiskDevices: HighRiskDevice[];
   highRiskUsers: HighRiskUser[];
   staleAccountCount: number | null;

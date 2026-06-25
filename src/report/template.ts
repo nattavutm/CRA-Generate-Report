@@ -274,9 +274,25 @@ function exposure(model: ReportModel, pg: number, total: number): string {
     <table class="kv"><thead><tr><th>Insecure hosts</th><th>Connection issues</th><th>Exposed ports</th><th>Public IPs</th></tr></thead>
       <tbody><tr><td class="ar">${fmt(e?.insecureHostCount ?? null)}</td><td class="ar">${fmt(e?.connectionIssueCount ?? null)}</td><td class="ar">${fmt(e?.servicePortCount ?? null)}</td><td class="ar">${fmt(e?.publicIpCount ?? null)}</td></tr></tbody>
     </table>
+    <h3>Top exposed public IPs</h3>
+    <table class="kv"><thead><tr><th>IP address</th><th class="ar">Risk score</th><th>Criticality</th><th class="ar">High CVEs</th><th class="ar">Open services</th></tr></thead>
+      <tbody>${
+        l.publicIps.length === 0
+          ? '<tr><td colspan="5" class="muted">No public-IP detail returned.</td></tr>'
+          : l.publicIps.slice(0, 5).map((p) => `<tr><td>${esc(p.ipAddress)}</td><td class="ar">${fmt(p.latestRiskScore ?? null)}</td><td>${p.criticality ? levelTag(p.criticality) : DASH}</td><td class="ar">${fmt(p.highCveCount ?? null)}</td><td class="ar">${fmt(Array.isArray(p.services) ? p.services.length : null)}</td></tr>`).join('')
+      }</tbody>
+    </table>
     <h3>Cloud &amp; identity exposure</h3>
     <table class="kv"><thead><tr><th>Cloud misconfig (high)</th><th>Cloud misconfig (medium)</th><th>Account-compromise events</th><th>Legacy-auth activities</th></tr></thead>
       <tbody><tr><td class="ar">${fmt(e?.cloudHighRiskCount ?? null)}</td><td class="ar">${fmt(e?.cloudMediumRiskCount ?? null)}</td><td class="ar">${fmt(e?.accountCompromiseEventCount ?? null)}</td><td class="ar">${fmt(e?.legacyAuthProtocolCount ?? null)}</td></tr></tbody>
+    </table>
+    <h3>Top cloud assets at risk</h3>
+    <table class="kv"><thead><tr><th>Asset</th><th>Type</th><th>Provider</th><th class="ar">Risk score</th><th>Criticality</th></tr></thead>
+      <tbody>${
+        l.cloudAssets.length === 0
+          ? '<tr><td colspan="5" class="muted">No cloud-asset detail returned.</td></tr>'
+          : l.cloudAssets.slice(0, 5).map((a) => `<tr><td>${esc(a.assetName)}</td><td>${esc(a.assetType || DASH)}</td><td>${esc(a.provider || DASH)}</td><td class="ar">${fmt(a.latestRiskScore ?? null)}</td><td>${a.criticality ? levelTag(a.criticality) : DASH}</td></tr>`).join('')
+      }</tbody>
     </table>
     <h3>Top accounts of concern</h3>
     <table class="kv"><thead><tr><th>Account</th><th>Role</th><th>Criticality</th><th class="ar">Risk score</th><th>Last seen</th></tr></thead>

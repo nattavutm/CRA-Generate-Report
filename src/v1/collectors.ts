@@ -8,6 +8,8 @@ import type {
   DomainAccount,
   HighRiskDevice,
   HighRiskUser,
+  PublicIpAsset,
+  CloudAsset,
   AlertSummary,
 } from '../types';
 
@@ -43,6 +45,16 @@ export async function getHighRiskDevices(client: V1Client, top = 20): Promise<Hi
 export async function getHighRiskUsers(client: V1Client, top = 20): Promise<HighRiskUser[]> {
   const res = await client.fetchJson<ListResponse<HighRiskUser>>('/v3.0/asrm/highRiskUsers', { query: { top } });
   return (res.items ?? []).slice().sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0)).slice(0, top);
+}
+
+export async function getPublicIpAddresses(client: V1Client, top = 20): Promise<PublicIpAsset[]> {
+  const res = await client.fetchJson<ListResponse<PublicIpAsset>>('/v3.0/asrm/attackSurfacePublicIpAddresses', { query: { top } });
+  return (res.items ?? []).slice().sort((a, b) => (b.latestRiskScore ?? 0) - (a.latestRiskScore ?? 0)).slice(0, top);
+}
+
+export async function getCloudAssets(client: V1Client, top = 20): Promise<CloudAsset[]> {
+  const res = await client.fetchJson<ListResponse<CloudAsset>>('/v3.0/asrm/attackSurfaceCloudAssets', { query: { top } });
+  return (res.items ?? []).slice().sort((a, b) => (b.latestRiskScore ?? 0) - (a.latestRiskScore ?? 0)).slice(0, top);
 }
 
 // workbench/alerts items are polymorphic (oneOf SAE/TI) — read fields defensively (cra.md §5 gotcha).

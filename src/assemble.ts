@@ -9,6 +9,8 @@ import {
   getDomainAccounts,
   getHighRiskDevices,
   getHighRiskUsers,
+  getPublicIpAddresses,
+  getCloudAssets,
   getWorkbenchAlerts,
 } from './v1/collectors';
 import type { ReportConfig, ReportModel, LiveData } from './types';
@@ -23,13 +25,15 @@ export async function assembleModel(client: V1Client, config: ReportConfig): Pro
     return null;
   };
 
-  const [posture, cves, internalCves, accounts, devices, users, alerts] = await Promise.all([
+  const [posture, cves, internalCves, accounts, devices, users, publicIps, cloudAssets, alerts] = await Promise.all([
     getSecurityPosture(client).catch(fail('securityPosture')),
     getInternetFacingCves(client, 50).catch((e) => (fail('internetFacingCves')(e), [])),
     getInternalCves(client, 50).catch((e) => (fail('internalCves')(e), [])),
     getDomainAccounts(client, 20).catch(fail('domainAccounts')),
     getHighRiskDevices(client, 20).catch(() => []),
     getHighRiskUsers(client, 20).catch(() => []),
+    getPublicIpAddresses(client, 20).catch(() => []),
+    getCloudAssets(client, 20).catch(() => []),
     getWorkbenchAlerts(client, config.workbench ?? {}, 50).catch((e) => (fail('alerts')(e), [])),
   ]);
 
@@ -120,6 +124,8 @@ export async function assembleModel(client: V1Client, config: ReportConfig): Pro
     internetFacingCves: cves ?? [],
     internalCves: internalCves ?? [],
     topAccounts,
+    publicIps: publicIps ?? [],
+    cloudAssets: cloudAssets ?? [],
     highRiskDevices: devices ?? [],
     highRiskUsers: users ?? [],
     staleAccountCount,
