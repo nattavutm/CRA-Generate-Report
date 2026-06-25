@@ -72,6 +72,9 @@ export interface InternetFacingCve {
 export interface DomainAccount {
   name: string;
   id: string;
+  latestRiskScore?: number;
+  criticality?: string;
+  type?: string;
   role?: string;
   lastDetectedDateTime?: string;
 }
@@ -81,6 +84,8 @@ export interface HighRiskDevice {
   deviceName: string;
   os: string;
   riskScore: number;
+  lastLogonUser?: string;
+  ip?: string[];
 }
 
 export interface HighRiskUser {
@@ -146,6 +151,8 @@ export interface LiveData {
     featureAdoption: Array<{ feature: string; adoptionRate: number }>; // flattened, worst-first
   } | null;
   internetFacingCves: InternetFacingCve[];
+  internalCves: InternetFacingCve[];
+  topAccounts: DomainAccount[];
   highRiskDevices: HighRiskDevice[];
   highRiskUsers: HighRiskUser[];
   staleAccountCount: number | null;

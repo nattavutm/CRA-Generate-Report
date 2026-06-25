@@ -5,6 +5,7 @@ import { V1Client } from './v1/client';
 import {
   getSecurityPosture,
   getInternetFacingCves,
+  getInternalCves,
   getDomainAccounts,
   getHighRiskDevices,
   getHighRiskUsers,
@@ -22,14 +23,20 @@ export async function assembleModel(client: V1Client, config: ReportConfig): Pro
     return null;
   };
 
-  const [posture, cves, accounts, devices, users, alerts] = await Promise.all([
+  const [posture, cves, internalCves, accounts, devices, users, alerts] = await Promise.all([
     getSecurityPosture(client).catch(fail('securityPosture')),
     getInternetFacingCves(client, 50).catch((e) => (fail('internetFacingCves')(e), [])),
+    getInternalCves(client, 50).catch((e) => (fail('internalCves')(e), [])),
     getDomainAccounts(client, 20).catch(fail('domainAccounts')),
     getHighRiskDevices(client, 20).catch(() => []),
     getHighRiskUsers(client, 20).catch(() => []),
     getWorkbenchAlerts(client, config.workbench ?? {}, 50).catch((e) => (fail('alerts')(e), [])),
   ]);
+
+  const topAccounts = (accounts ?? [])
+    .slice()
+    .sort((a, b) => (b.latestRiskScore ?? 0) - (a.latestRiskScore ?? 0))
+    .slice(0, 5);
 
   const cutoff = now - STALE_DAYS * 24 * 60 * 60 * 1000;
   const staleAccountCount = accounts
@@ -111,6 +118,8 @@ export async function assembleModel(client: V1Client, config: ReportConfig): Pro
         }
       : null,
     internetFacingCves: cves ?? [],
+    internalCves: internalCves ?? [],
+    topAccounts,
     highRiskDevices: devices ?? [],
     highRiskUsers: users ?? [],
     staleAccountCount,

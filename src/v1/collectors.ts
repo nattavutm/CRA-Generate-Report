@@ -16,12 +16,19 @@ export function getSecurityPosture(client: V1Client): Promise<SecurityPosture> {
   return client.fetchJson<SecurityPosture>('/v3.0/asrm/securityPosture');
 }
 
+// ASRM list endpoints: skip server-side orderBy (it can trigger HTTP 400) and sort client-side.
+function sortCves(items: InternetFacingCve[], top: number): InternetFacingCve[] {
+  return items.slice().sort((a, b) => (b.cveRiskScore ?? 0) - (a.cveRiskScore ?? 0)).slice(0, top);
+}
+
 export async function getInternetFacingCves(client: V1Client, top = 50): Promise<InternetFacingCve[]> {
-  const res = await client.fetchJson<ListResponse<InternetFacingCve>>(
-    '/v3.0/asrm/internetFacingAssetVulnerabilities',
-    { query: { top, orderBy: 'cveRiskScore desc' } },
-  );
-  return res.items ?? [];
+  const res = await client.fetchJson<ListResponse<InternetFacingCve>>('/v3.0/asrm/internetFacingAssetVulnerabilities', { query: { top } });
+  return sortCves(res.items ?? [], top);
+}
+
+export async function getInternalCves(client: V1Client, top = 50): Promise<InternetFacingCve[]> {
+  const res = await client.fetchJson<ListResponse<InternetFacingCve>>('/v3.0/asrm/internalAssetVulnerabilities', { query: { top } });
+  return sortCves(res.items ?? [], top);
 }
 
 export function getDomainAccounts(client: V1Client, cap = 20): Promise<DomainAccount[]> {
@@ -29,17 +36,13 @@ export function getDomainAccounts(client: V1Client, cap = 20): Promise<DomainAcc
 }
 
 export async function getHighRiskDevices(client: V1Client, top = 20): Promise<HighRiskDevice[]> {
-  const res = await client.fetchJson<ListResponse<HighRiskDevice>>('/v3.0/asrm/highRiskDevices', {
-    query: { top, orderBy: 'riskScore desc' },
-  });
-  return res.items ?? [];
+  const res = await client.fetchJson<ListResponse<HighRiskDevice>>('/v3.0/asrm/highRiskDevices', { query: { top } });
+  return (res.items ?? []).slice().sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0)).slice(0, top);
 }
 
 export async function getHighRiskUsers(client: V1Client, top = 20): Promise<HighRiskUser[]> {
-  const res = await client.fetchJson<ListResponse<HighRiskUser>>('/v3.0/asrm/highRiskUsers', {
-    query: { top, orderBy: 'riskScore desc' },
-  });
-  return res.items ?? [];
+  const res = await client.fetchJson<ListResponse<HighRiskUser>>('/v3.0/asrm/highRiskUsers', { query: { top } });
+  return (res.items ?? []).slice().sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0)).slice(0, top);
 }
 
 // workbench/alerts items are polymorphic (oneOf SAE/TI) — read fields defensively (cra.md §5 gotcha).

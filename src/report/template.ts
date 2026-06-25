@@ -239,15 +239,23 @@ function riskEventsBlock(model: ReportModel): string {
     <table class="kv"><thead><tr><th>Risk factor</th><th class="ar">Events</th><th class="ar">Affected assets</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
+function cveRows(list: ReportModel['live']['internetFacingCves'], emptyMsg: string): string {
+  if (list.length === 0) return `<tr><td colspan="5" class="muted">${esc(emptyMsg)}</td></tr>`;
+  return list
+    .slice(0, 5)
+    .map((v) => `<tr><td>${esc(v.cveId)}</td><td class="ar">${fmt(v.cveRiskScore)}</td><td class="ar">${fmt(v.cvssScore)}</td><td class="ar">${fmt(v.affectedAssetCount)}</td><td>${esc(cap(v.globalExploitActivityLevel))}</td></tr>`)
+    .join('');
+}
+const CVE_HEAD = '<thead><tr><th>CVE</th><th class="ar">Risk score</th><th class="ar">CVSS</th><th class="ar">Affected</th><th>Global exploit activity</th></tr></thead>';
+
 function exposure(model: ReportModel, pg: number, total: number): string {
   const l = model.live;
   const e = l.exposure;
-  const cveRows =
-    l.internetFacingCves.length === 0
-      ? `<tr><td colspan="5" class="muted">${l.errors.internetFacingCves ? 'Data unavailable.' : 'No internet-facing CVEs returned.'}</td></tr>`
-      : l.internetFacingCves
-          .slice(0, 8)
-          .map((v) => `<tr><td>${esc(v.cveId)}</td><td class="ar">${fmt(v.cveRiskScore)}</td><td class="ar">${fmt(v.cvssScore)}</td><td class="ar">${fmt(v.affectedAssetCount)}</td><td>${esc(cap(v.globalExploitActivityLevel))}</td></tr>`)
+  const acctRows =
+    l.topAccounts.length === 0
+      ? `<tr><td colspan="5" class="muted">No account detail returned.</td></tr>`
+      : l.topAccounts
+          .map((a) => `<tr><td>${esc(a.name)}</td><td>${esc(a.role || DASH)}</td><td>${a.criticality ? levelTag(a.criticality) : DASH}</td><td class="ar">${fmt(a.latestRiskScore ?? null)}</td><td>${esc(a.lastDetectedDateTime ? a.lastDetectedDateTime.slice(0, 10) : DASH)}</td></tr>`)
           .join('');
   return `<div class="page">${HEADER}
     ${shead('04', 'Exposure Overview', 'Internet-facing assets, vulnerabilities, and accounts.')}
@@ -270,9 +278,19 @@ function exposure(model: ReportModel, pg: number, total: number): string {
     <table class="kv"><thead><tr><th>Cloud misconfig (high)</th><th>Cloud misconfig (medium)</th><th>Account-compromise events</th><th>Legacy-auth activities</th></tr></thead>
       <tbody><tr><td class="ar">${fmt(e?.cloudHighRiskCount ?? null)}</td><td class="ar">${fmt(e?.cloudMediumRiskCount ?? null)}</td><td class="ar">${fmt(e?.accountCompromiseEventCount ?? null)}</td><td class="ar">${fmt(e?.legacyAuthProtocolCount ?? null)}</td></tr></tbody>
     </table>
+    <h3>Top accounts of concern</h3>
+    <table class="kv"><thead><tr><th>Account</th><th>Role</th><th>Criticality</th><th class="ar">Risk score</th><th>Last seen</th></tr></thead>
+      <tbody>${acctRows}</tbody>
+    </table>
+    <h3>Top internal-asset CVEs</h3>
+    ${dataNotice(model, 'internalCves')}
+    <table class="kv">${CVE_HEAD}
+      <tbody>${cveRows(l.internalCves, l.errors.internalCves ? 'Data unavailable.' : 'No internal CVEs returned.')}</tbody>
+    </table>
     <h3>Top internet-facing CVEs</h3>
-    <table class="kv"><thead><tr><th>CVE</th><th class="ar">Risk score</th><th class="ar">CVSS</th><th class="ar">Affected</th><th>Global exploit activity</th></tr></thead>
-      <tbody>${cveRows}</tbody>
+    ${dataNotice(model, 'internetFacingCves')}
+    <table class="kv">${CVE_HEAD}
+      <tbody>${cveRows(l.internetFacingCves, l.errors.internetFacingCves ? 'Data unavailable.' : 'No internet-facing CVEs returned.')}</tbody>
     </table>
     ${footer(pg, total)}
   </div>`;
@@ -331,21 +349,21 @@ function attack(model: ReportModel, pg: number, total: number): string {
           .join('');
   const devRows =
     l.highRiskDevices.length === 0
-      ? `<tr><td colspan="3" class="muted">No high-risk devices returned.</td></tr>`
-      : l.highRiskDevices.slice(0, 8).map((d) => `<tr><td>${esc(d.deviceName)}</td><td class="ar">${fmt(d.riskScore)}</td><td>${esc(d.os)}</td></tr>`).join('');
+      ? `<tr><td colspan="4" class="muted">No high-risk devices returned.</td></tr>`
+      : l.highRiskDevices.slice(0, 5).map((d) => `<tr><td>${esc(d.deviceName)}</td><td class="ar">${fmt(d.riskScore)}</td><td>${esc(d.lastLogonUser || DASH)}</td><td>${esc(d.os)}</td></tr>`).join('');
   const userRows =
     l.highRiskUsers.length === 0
       ? `<tr><td colspan="2" class="muted">No high-risk users returned.</td></tr>`
-      : l.highRiskUsers.slice(0, 8).map((u) => `<tr><td>${esc(u.userName)}${u.userPrincipalName ? ` <span class="muted">(${esc(u.userPrincipalName)})</span>` : ''}</td><td class="ar">${fmt(u.riskScore)}</td></tr>`).join('');
+      : l.highRiskUsers.slice(0, 5).map((u) => `<tr><td>${esc(u.userName)}${u.userPrincipalName ? ` <span class="muted">(${esc(u.userPrincipalName)})</span>` : ''}</td><td class="ar">${fmt(u.riskScore)}</td></tr>`).join('');
   return `<div class="page">${HEADER}
     ${shead('06', 'Attack Overview', 'Detections, prioritized.')}
     <p class="lead">XDR detections and high-risk assets read live from Vision One Workbench and Attack Surface Risk Management for the reporting window.</p>
     <h3>XDR detection summary</h3>
     ${dataNotice(model, 'alerts')}
     <table class="kv"><thead><tr><th>Detection</th><th>Severity</th><th>Entity</th><th>Time (UTC)</th></tr></thead><tbody>${alertRows}</tbody></table>
-    <h3>High-risk devices</h3>
-    <table class="kv"><thead><tr><th>Device</th><th class="ar">Risk score</th><th>OS</th></tr></thead><tbody>${devRows}</tbody></table>
-    <h3>High-risk users</h3>
+    <h3>Top high-risk devices</h3>
+    <table class="kv"><thead><tr><th>Device</th><th class="ar">Risk score</th><th>Last logon user</th><th>OS</th></tr></thead><tbody>${devRows}</tbody></table>
+    <h3>Top high-risk users</h3>
     <table class="kv"><thead><tr><th>User</th><th class="ar">Risk score</th></tr></thead><tbody>${userRows}</tbody></table>
     ${footer(pg, total)}
   </div>`;
