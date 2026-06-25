@@ -23,16 +23,10 @@ export async function assembleModel(client: V1Client, config: ReportConfig): Pro
 
   const [posture, cves, accounts, devices, alerts] = await Promise.all([
     getSecurityPosture(client).catch(fail('securityPosture')),
-    getInternetFacingCves(client, 50).catch(() => {
-      errors.internetFacingCves = 'unavailable';
-      return [];
-    }),
+    getInternetFacingCves(client, 50).catch((e) => (fail('internetFacingCves')(e), [])),
     getDomainAccounts(client, 20).catch(fail('domainAccounts')),
     getHighRiskDevices(client, 20).catch(() => []),
-    getWorkbenchAlerts(client, config.workbench ?? {}, 50).catch(() => {
-      errors.alerts = 'unavailable';
-      return [];
-    }),
+    getWorkbenchAlerts(client, config.workbench ?? {}, 50).catch((e) => (fail('alerts')(e), [])),
   ]);
 
   const cutoff = now - STALE_DAYS * 24 * 60 * 60 * 1000;
@@ -45,6 +39,18 @@ export async function assembleModel(client: V1Client, config: ReportConfig): Pro
 
   const ex = posture?.exposureStatus;
   const sc = posture?.securityConfigurationStatus;
+
+  // Flatten agent feature-adoption across all platform groups; keep the worst rate per feature.
+  const featureAdoption: Array<{ feature: string; adoptionRate: number }> = [];
+  const featSeen = new Map<string, number>();
+  for (const group of Object.values(sc?.endpointAgentStatus.agentFeatureStatus ?? {})) {
+    for (const f of group ?? []) {
+      const prev = featSeen.get(f.feature);
+      if (prev === undefined || f.adoptionRate < prev) featSeen.set(f.feature, f.adoptionRate);
+    }
+  }
+  for (const [feature, adoptionRate] of featSeen) featureAdoption.push({ feature, adoptionRate });
+  featureAdoption.sort((a, b) => a.adoptionRate - b.adoptionRate); // worst adoption first
 
   const live: LiveData = {
     available: posture !== null,
@@ -67,6 +73,7 @@ export async function assembleModel(client: V1Client, config: ReportConfig): Pro
           legacyOsEndpointCount: posture.cveManagementMetrics.legacyOsEndpointCount,
         }
       : null,
+    riskEvents: posture?.highImpactRiskEvents ?? [],
     exposure: ex
       ? {
           weakAuthenticationCount: ex.domainAccountMisconfigurationStatus.weakAuthenticationCount,
@@ -76,6 +83,10 @@ export async function assembleModel(client: V1Client, config: ReportConfig): Pro
           connectionIssueCount: ex.insecureHostConnectionStatus.connectionIssueCount,
           servicePortCount: ex.unexpectedInternetFacingInterfaceStatus.servicePortCount,
           publicIpCount: ex.unexpectedInternetFacingInterfaceStatus.publicIpCount,
+          cloudHighRiskCount: ex.cloudAssetMisconfigurationStatus?.highRiskCount ?? null,
+          cloudMediumRiskCount: ex.cloudAssetMisconfigurationStatus?.mediumRiskCount ?? null,
+          accountCompromiseEventCount: ex.domainAccountCompromiseEventCount ?? null,
+          legacyAuthProtocolCount: ex.legacyAuthenticationProtocolCount ?? null,
         }
       : null,
     securityConfig: sc
@@ -88,6 +99,13 @@ export async function assembleModel(client: V1Client, config: ReportConfig): Pro
           virtualPatched: sc.virtualPatchingStatus.patchedCount,
           virtualPartial: sc.virtualPatchingStatus.partialPatchedCount,
           virtualNot: sc.virtualPatchingStatus.notPatchedCount,
+          emailExchangeEnabled: sc.emailSensorStatus?.exchange.enabledMailboxCount ?? null,
+          emailExchangeTotal: sc.emailSensorStatus?.exchange.totalMailboxCount ?? null,
+          emailGmailEnabled: sc.emailSensorStatus?.gmail.enabledMailboxCount ?? null,
+          emailGmailTotal: sc.emailSensorStatus?.gmail.totalMailboxCount ?? null,
+          sanctionedAppCount: sc.cloudAppsStatus?.sanctionedAppCount ?? null,
+          unsanctionedAppCount: sc.cloudAppsStatus?.unsanctionedAppCount ?? null,
+          featureAdoption,
         }
       : null,
     internetFacingCves: cves ?? [],

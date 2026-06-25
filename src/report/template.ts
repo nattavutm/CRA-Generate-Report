@@ -221,8 +221,22 @@ function riskIndex(model: ReportModel, pg: number, total: number): string {
       </tbody>
     </table>
     <p class="muted">${esc(note)}</p>
+    ${riskEventsBlock(model)}
     ${footer(pg, total)}
   </div>`;
+}
+
+function riskEventsBlock(model: ReportModel): string {
+  const ev = model.live.riskEvents;
+  if (!ev.length) return '';
+  const rows = ev
+    .slice()
+    .sort((a, b) => b.affectedAssetCount - a.affectedAssetCount)
+    .slice(0, 8)
+    .map((e) => `<tr><td>${esc(e.factor)}</td><td class="ar">${fmt(e.eventCount)}</td><td class="ar">${fmt(e.affectedAssetCount)}</td></tr>`)
+    .join('');
+  return `<h3>High-impact risk events</h3>
+    <table class="kv"><thead><tr><th>Risk factor</th><th class="ar">Events</th><th class="ar">Affected assets</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function exposure(model: ReportModel, pg: number, total: number): string {
@@ -252,6 +266,10 @@ function exposure(model: ReportModel, pg: number, total: number): string {
     <table class="kv"><thead><tr><th>Insecure hosts</th><th>Connection issues</th><th>Exposed ports</th><th>Public IPs</th></tr></thead>
       <tbody><tr><td class="ar">${fmt(e?.insecureHostCount ?? null)}</td><td class="ar">${fmt(e?.connectionIssueCount ?? null)}</td><td class="ar">${fmt(e?.servicePortCount ?? null)}</td><td class="ar">${fmt(e?.publicIpCount ?? null)}</td></tr></tbody>
     </table>
+    <h3>Cloud &amp; identity exposure</h3>
+    <table class="kv"><thead><tr><th>Cloud misconfig (high)</th><th>Cloud misconfig (medium)</th><th>Account-compromise events</th><th>Legacy-auth activities</th></tr></thead>
+      <tbody><tr><td class="ar">${fmt(e?.cloudHighRiskCount ?? null)}</td><td class="ar">${fmt(e?.cloudMediumRiskCount ?? null)}</td><td class="ar">${fmt(e?.accountCompromiseEventCount ?? null)}</td><td class="ar">${fmt(e?.legacyAuthProtocolCount ?? null)}</td></tr></tbody>
+    </table>
     <h3>Top internet-facing CVEs</h3>
     <table class="kv"><thead><tr><th>CVE</th><th class="ar">Risk score</th><th class="ar">CVSS</th><th class="ar">Affected</th><th>Global exploit activity</th></tr></thead>
       <tbody>${cveRows}</tbody>
@@ -279,8 +297,27 @@ function securityConfig(model: ReportModel, pg: number, total: number): string {
     <table class="kv"><thead><tr><th class="ar">Fully patched</th><th class="ar">Partially patched</th><th class="ar">Not patched</th></tr></thead>
       <tbody><tr><td class="ar">${fmt(s?.virtualPatched ?? null)}</td><td class="ar">${fmt(s?.virtualPartial ?? null)}</td><td class="ar">${fmt(s?.virtualNot ?? null)}</td></tr></tbody>
     </table>
+    <h3>Email sensor &amp; cloud apps</h3>
+    <table class="kv"><thead><tr><th>Channel / app</th><th class="ar">Enabled / sanctioned</th><th class="ar">Total / unsanctioned</th></tr></thead>
+      <tbody>
+        <tr><td>Exchange Online mailboxes</td><td class="ar">${fmt(s?.emailExchangeEnabled ?? null)}</td><td class="ar">${fmt(s?.emailExchangeTotal ?? null)}</td></tr>
+        <tr><td>Gmail mailboxes</td><td class="ar">${fmt(s?.emailGmailEnabled ?? null)}</td><td class="ar">${fmt(s?.emailGmailTotal ?? null)}</td></tr>
+        <tr><td>Cloud apps (sanctioned / unsanctioned)</td><td class="ar">${fmt(s?.sanctionedAppCount ?? null)}</td><td class="ar">${fmt(s?.unsanctionedAppCount ?? null)}</td></tr>
+      </tbody>
+    </table>
+    ${featureAdoptionBlock(s?.featureAdoption ?? [])}
     ${footer(pg, total)}
   </div>`;
+}
+
+function featureAdoptionBlock(feats: Array<{ feature: string; adoptionRate: number }>): string {
+  if (!feats.length) return '';
+  const rows = feats
+    .slice(0, 8)
+    .map((f) => `<tr><td>${esc(f.feature)}</td><td class="ar">${pct(f.adoptionRate)}</td></tr>`)
+    .join('');
+  return `<h3>Feature adoption (lowest first)</h3>
+    <table class="kv"><thead><tr><th>Security feature</th><th class="ar">Adoption</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 function attack(model: ReportModel, pg: number, total: number): string {

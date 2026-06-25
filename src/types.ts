@@ -23,6 +23,7 @@ export interface SecurityPosture {
   createdDateTime: string;
   riskIndex?: number;
   riskCategoryLevel: { exposure: RiskLevel; attack: RiskLevel; securityConfiguration: RiskLevel };
+  highImpactRiskEvents?: Array<{ factor: string; eventCount: number; affectedAssetCount: number }>;
   vulnerabilityAssessmentCoverageRate: number; // already a percentage (e.g. 52.2)
   cveManagementMetrics: {
     count: number;
@@ -33,6 +34,7 @@ export interface SecurityPosture {
     legacyOsEndpointCount: number;
   };
   exposureStatus: {
+    cloudAssetMisconfigurationStatus?: { highRiskCount: number; mediumRiskCount: number };
     unexpectedInternetFacingInterfaceStatus: { servicePortCount: number; publicIpCount: number };
     insecureHostConnectionStatus: { insecureHostCount: number; connectionIssueCount: number };
     domainAccountMisconfigurationStatus: {
@@ -40,14 +42,22 @@ export interface SecurityPosture {
       increaseAttackSurfaceRiskCount: number;
       excessivePrivilegeCount: number;
     };
+    domainAccountCompromiseEventCount?: number;
+    legacyAuthenticationProtocolCount?: number;
   };
   securityConfigurationStatus: {
     endpointAgentStatus: {
       agentAdoptionCount: number;
       agentVersionStatus: { outdatedCount: number; otherCount: number; latestCount: number };
       edrFeatureAdoptionCount: number;
+      agentFeatureStatus?: Record<string, Array<{ feature: string; adoptionRate: number }>>;
     };
     virtualPatchingStatus: { patchedCount: number; partialPatchedCount: number; notPatchedCount: number };
+    emailSensorStatus?: {
+      exchange: { enabledMailboxCount: number; totalMailboxCount: number };
+      gmail: { enabledMailboxCount: number; totalMailboxCount: number };
+    };
+    cloudAppsStatus?: { sanctionedAppCount: number; unsanctionedAppCount: number };
   };
 }
 
@@ -97,6 +107,7 @@ export interface LiveData {
     vulnerableEndpointRate: number;
     legacyOsEndpointCount: number;
   } | null;
+  riskEvents: Array<{ factor: string; eventCount: number; affectedAssetCount: number }>;
   exposure: {
     weakAuthenticationCount: number;
     excessivePrivilegeCount: number;
@@ -105,6 +116,10 @@ export interface LiveData {
     connectionIssueCount: number;
     servicePortCount: number;
     publicIpCount: number;
+    cloudHighRiskCount: number | null;
+    cloudMediumRiskCount: number | null;
+    accountCompromiseEventCount: number | null;
+    legacyAuthProtocolCount: number | null;
   } | null;
   securityConfig: {
     agentAdoptionCount: number;
@@ -115,6 +130,13 @@ export interface LiveData {
     virtualPatched: number;
     virtualPartial: number;
     virtualNot: number;
+    emailExchangeEnabled: number | null;
+    emailExchangeTotal: number | null;
+    emailGmailEnabled: number | null;
+    emailGmailTotal: number | null;
+    sanctionedAppCount: number | null;
+    unsanctionedAppCount: number | null;
+    featureAdoption: Array<{ feature: string; adoptionRate: number }>; // flattened, worst-first
   } | null;
   internetFacingCves: InternetFacingCve[];
   highRiskDevices: HighRiskDevice[];

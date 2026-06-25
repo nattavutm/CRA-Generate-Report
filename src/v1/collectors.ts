@@ -73,19 +73,18 @@ export async function getWorkbenchAlerts(
   range: { startDateTime?: string; endDateTime?: string },
   top = 50,
 ): Promise<AlertSummary[]> {
+  // No server-side orderBy (the param is finicky); sort by severity score client-side.
   const res = await client.fetchJson<ListResponse<RawAlert>>('/v3.0/workbench/alerts', {
-    query: {
-      startDateTime: range.startDateTime,
-      endDateTime: range.endDateTime,
-      orderBy: 'createdDateTime desc',
-    },
+    query: { startDateTime: range.startDateTime, endDateTime: range.endDateTime },
   });
-  const items = (res.items ?? []).slice(0, top);
-  return items.map((a) => ({
-    name: a.model ?? a.description ?? 'Unknown detection',
-    severity: a.severity ?? 'unknown',
-    score: a.score,
-    entity: entityLabel(a.impactScope),
-    time: a.createdDateTime ?? '',
-  }));
+  return (res.items ?? [])
+    .map((a) => ({
+      name: a.model ?? a.description ?? 'Unknown detection',
+      severity: a.severity ?? 'unknown',
+      score: a.score,
+      entity: entityLabel(a.impactScope),
+      time: a.createdDateTime ?? '',
+    }))
+    .sort((x, y) => (y.score ?? 0) - (x.score ?? 0))
+    .slice(0, top);
 }

@@ -31,12 +31,14 @@ html, body {
 
 .page {
   position: relative;
-  width: 210mm; height: 297mm;
-  padding: 20mm 20mm 22mm;
+  width: 210mm; min-height: 297mm;
+  padding: 20mm 20mm 16mm;
   page-break-after: always;
-  background: #fff; overflow: hidden;
+  background: #fff;
+  display: flex; flex-direction: column;
 }
 .page:last-child { page-break-after: auto; }
+.page > .pfoot { margin-top: auto; } /* pin footer to the bottom of each page */
 
 /* ---------- eyebrows / letter-spaced labels ---------- */
 .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .34em; text-transform: uppercase; }
@@ -51,7 +53,7 @@ html, body {
 .logo .word { font-size: 17px; font-weight: 800; letter-spacing: -.2px; color: var(--ink); }
 .logo .tm { font-size: 8px; vertical-align: super; color: var(--muted); }
 
-.pfoot { position: absolute; left: 20mm; right: 20mm; bottom: 12mm; padding-top: 8px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); }
+.pfoot { padding-top: 10px; margin-top: 18px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); }
 .pfoot b { color: var(--ink); font-weight: 800; }
 
 /* ---------- section header ---------- */
