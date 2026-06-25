@@ -13,8 +13,6 @@ export interface Env {
 }
 
 // ---------- Vision One: securityPosture response (GET /v3.0/asrm/securityPosture) ----------
-// Mirrors sp-api-open-v3.0.json. Only the fields the report consumes are typed in full;
-// the rest are kept loose to survive schema drift.
 
 export type RiskLevel = 'low' | 'medium' | 'high';
 
@@ -24,12 +22,7 @@ export interface SecurityPosture {
   companyName: string;
   createdDateTime: string;
   riskIndex?: number;
-  riskCategoryLevel: {
-    exposure: RiskLevel;
-    attack: RiskLevel;
-    securityConfiguration: RiskLevel;
-  };
-  highImpactRiskEvents: Array<{ factor: string; eventCount: number; affectedAssetCount: number }>;
+  riskCategoryLevel: { exposure: RiskLevel; attack: RiskLevel; securityConfiguration: RiskLevel };
   vulnerabilityAssessmentCoverageRate: number; // already a percentage (e.g. 52.2)
   cveManagementMetrics: {
     count: number;
@@ -40,7 +33,6 @@ export interface SecurityPosture {
     legacyOsEndpointCount: number;
   };
   exposureStatus: {
-    cloudAssetMisconfigurationStatus: { highRiskCount: number; mediumRiskCount: number };
     unexpectedInternetFacingInterfaceStatus: { servicePortCount: number; publicIpCount: number };
     insecureHostConnectionStatus: { insecureHostCount: number; connectionIssueCount: number };
     domainAccountMisconfigurationStatus: {
@@ -48,41 +40,28 @@ export interface SecurityPosture {
       increaseAttackSurfaceRiskCount: number;
       excessivePrivilegeCount: number;
     };
-    domainAccountCompromiseEventCount: number;
-    legacyAuthenticationProtocolCount: number;
   };
   securityConfigurationStatus: {
     endpointAgentStatus: {
       agentAdoptionCount: number;
       agentVersionStatus: { outdatedCount: number; otherCount: number; latestCount: number };
       edrFeatureAdoptionCount: number;
-      agentFeatureStatus: Record<string, Array<{ feature: string; adoptionRate: number }>>;
     };
     virtualPatchingStatus: { patchedCount: number; partialPatchedCount: number; notPatchedCount: number };
-    emailSensorStatus: {
-      exchange: { enabledMailboxCount: number; totalMailboxCount: number };
-      gmail: { enabledMailboxCount: number; totalMailboxCount: number };
-    };
-    cloudAppsStatus: { sanctionedAppCount: number; unsanctionedAppCount: number };
   };
 }
 
 export interface InternetFacingCve {
   cveId: string;
-  cveRiskLevel?: string;
   cveRiskScore: number;
   cvssScore: number;
   affectedAssetCount: number;
-  exploitAttemptsCount?: number;
   globalExploitActivityLevel: string;
 }
 
 export interface DomainAccount {
   name: string;
   id: string;
-  latestRiskScore?: number;
-  criticality?: string;
-  type?: string;
   role?: string;
   lastDetectedDateTime?: string;
 }
@@ -92,8 +71,6 @@ export interface HighRiskDevice {
   deviceName: string;
   os: string;
   riskScore: number;
-  lastLogonUser?: string;
-  ip?: string[];
 }
 
 export interface AlertSummary {
@@ -104,14 +81,35 @@ export interface AlertSummary {
   time: string;
 }
 
-// ---------- Form input (cra.md §7) ----------
+// Live data slice — used to pre-fill editorial defaults and the trend table's latest column.
+export interface LiveData {
+  available: boolean;
+  companyName?: string;
+  createdDateTime?: string;
+  riskIndex: number | null;
+  categoryLevels: { exposure: string; attack: string; securityConfiguration: string };
+  coverageRate: number | null;
+  cve: { count: number; mttpDays: number | null; averageUnpatchedDays: number; legacyOsEndpointCount: number } | null;
+  staleAccountCount: number | null;
+  alerts: AlertSummary[];
+  errors: Record<string, string>;
+}
+
+// ---------- Form input / editorial content (cra.md §2.3, §7) ----------
 
 export type SessionStatus = 'Completed' | 'Upcoming';
 
-export interface PriorPeriod {
+export interface TrendPoint {
   day1?: number;
   day30?: number;
   day60?: number;
+  day90?: number;
+}
+
+export interface HeroMetric {
+  value: string;
+  label: string;
+  accent?: boolean; // render the value in red
 }
 
 export interface Finding {
@@ -123,51 +121,55 @@ export interface Finding {
   status: string;
 }
 
+export interface Session {
+  label: string;
+  date: string;
+  time: string;
+  status: SessionStatus;
+}
+
 export interface ReportConfig {
   customerName: string;
   region: string;
   engagement: { docId: string; cycleLabel: string };
-  sessions: Array<{ label: string; date: string; time: string; status: SessionStatus }>;
-  priorRiskIndex?: PriorPeriod;
-  priorCategory?: {
-    exposure?: PriorPeriod;
-    attack?: PriorPeriod;
-    securityConfiguration?: PriorPeriod;
-  };
+  coverTitle?: string;
+  coverSubtitle?: string;
+
+  // §01 Executive Summary
   executiveSummary: string;
+  hero?: HeroMetric[]; // up to 4 cards; blank → derived from live
   whatChanged: string[];
+
+  // §03 Risk Index trend (manual; Risk Index Day 90 defaults to live)
+  trend?: {
+    riskIndex?: TrendPoint;
+    exposure?: TrendPoint;
+    attack?: TrendPoint;
+    securityConfiguration?: TrendPoint;
+  };
+  riskIndexNote?: string;
+
+  // §04 Exposure Overview
+  exposure?: { narrative?: string; subNarrative?: string; findings?: string[] };
+
+  // §05 Security Configuration Overview
+  securityConfig?: { narrative?: string; endpointProtection?: string; featureAdoption?: string[]; endpointSensor?: string };
+
+  // §06 Attack Overview
+  attack?: { narrative?: string; detections?: string[] };
+
+  // §07 Recommendations
+  recommendations?: Finding[];
+
+  // §08 cadence
+  sessions: Session[];
+
   dataSourceNotes?: string;
-  recommendationsOverride?: Finding[];
   workbench?: { startDateTime?: string; endDateTime?: string };
 }
 
-// ---------- Assembled report model (cra.md §7) ----------
-
 export interface ReportModel {
   config: ReportConfig;
-  live: {
-    available: boolean; // false if securityPosture failed entirely
-    companyName?: string;
-    createdDateTime?: string;
-    riskIndex: number | null;
-    categoryLevels: { exposure: string; attack: string; securityConfiguration: string };
-    coverageRate: number | null;
-    cve: {
-      count: number;
-      mttpDays: number | null;
-      averageUnpatchedDays: number;
-      density: number;
-      vulnerableEndpointRate: number;
-      legacyOsEndpointCount: number;
-    } | null;
-    exposure: SecurityPosture['exposureStatus'] | null;
-    securityConfig: SecurityPosture['securityConfigurationStatus'] | null;
-    internetFacingCves: InternetFacingCve[];
-    staleAccountCount: number | null;
-    highRiskDevices: HighRiskDevice[];
-    alerts: AlertSummary[];
-  };
-  // Per-section data availability, so the template can show "data unavailable" notices (§6.8).
-  errors: Record<string, string>;
+  live: LiveData;
   generatedAt: string;
 }

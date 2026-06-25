@@ -59,8 +59,20 @@ wrangler secret put V1_API_TOKEN
 # wrangler secret put ANTHROPIC_API_KEY   # optional
 ```
 
+## Output design
+The PDF reproduces `CyberRiskAdvisoryService.pdf`: black cover, red accent, TrendAI header/footer on
+every page, a contents page, a methodology page with numbered steps, the Risk Index trend table
+(Day 90 turns red when worse than Day 60), narrative + red-square-bullet sections, the colored-risk
+recommendations table (paginated 3 findings/page), and the cadence page with the "AI Fearlessly"
+callout. The generate form (`GET /`) is **pre-filled with the reference sample**, so a fresh
+**Generate PDF** produces a report matching the reference; edit any field for a real engagement.
+
 ## Design decisions (from the spec)
-- **Trend table:** only the latest column is live; Day 1/30/60 are **manual** form inputs, blank → `—`.
+- **Trend table:** Risk Index Day 90 is filled live from the API; all other cells are **manual** form
+  inputs, blank → `—`.
 - **Editorial text is human-owned** — narrative is never auto-asserted from data. The AI draft lands in
-  an editable field for review; it is never injected into the PDF directly.
+  an editable field for review; it is never injected into the PDF directly. Hero metric cards and the
+  attack detection list fall back to live data only when left blank.
 - **Graceful degradation:** one failing collector renders a "data unavailable" notice, not a 500.
+- Each section is one fixed A4 page (`height: 297mm; overflow: hidden`) to keep pagination and page
+  numbers exact — very long custom narratives may clip; trim to fit.
