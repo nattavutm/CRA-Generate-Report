@@ -1,0 +1,21 @@
+name = "cra-generate-report"
+main = "src/index.ts"
+compatibility_date = "2024-12-18"
+compatibility_flags = ["nodejs_compat"]
+
+# HTML → PDF via Puppeteer-on-Workers. Requires a paid Workers plan.
+browser = { binding = "BROWSER" }
+
+[vars]
+# Region key → Vision One DC base URL. Thailand uses the Singapore DC.
+# Allowed: sg, us, eu, jp, au, in, mea, uk, ca, za
+V1_REGION = "sg"
+
+# --- Secrets (set with `wrangler secret put`, never commit) ---
+# V1_API_TOKEN     -> Vision One Bearer token  (required)
+# ANTHROPIC_API_KEY -> optional, only for the AI "Draft summary" button (§11)
+
+# --- Optional R2 cache of rendered PDFs (§9). Uncomment to enable. ---
+# [[r2_buckets]]
+# binding = "REPORTS"
+# bucket_name = "cra-reports"

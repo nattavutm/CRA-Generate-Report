@@ -1,0 +1,5 @@
+# Copy to `.dev.vars` for local `wrangler dev`. Never commit `.dev.vars`.
+V1_API_TOKEN="your-vision-one-bearer-token"
+
+# Optional — only needed for the AI "Draft summary" button (§11).
+# ANTHROPIC_API_KEY="sk-ant-..."
