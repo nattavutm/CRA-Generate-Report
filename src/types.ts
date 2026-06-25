@@ -81,7 +81,7 @@ export interface AlertSummary {
   time: string;
 }
 
-// Live data slice — used to pre-fill editorial defaults and the trend table's latest column.
+// Live data slice — the report's data sections render straight from this (pulled from the API).
 export interface LiveData {
   available: boolean;
   companyName?: string;
@@ -89,27 +89,50 @@ export interface LiveData {
   riskIndex: number | null;
   categoryLevels: { exposure: string; attack: string; securityConfiguration: string };
   coverageRate: number | null;
-  cve: { count: number; mttpDays: number | null; averageUnpatchedDays: number; legacyOsEndpointCount: number } | null;
+  cve: {
+    count: number;
+    mttpDays: number | null;
+    averageUnpatchedDays: number;
+    density: number;
+    vulnerableEndpointRate: number;
+    legacyOsEndpointCount: number;
+  } | null;
+  exposure: {
+    weakAuthenticationCount: number;
+    excessivePrivilegeCount: number;
+    increaseAttackSurfaceRiskCount: number;
+    insecureHostCount: number;
+    connectionIssueCount: number;
+    servicePortCount: number;
+    publicIpCount: number;
+  } | null;
+  securityConfig: {
+    agentAdoptionCount: number;
+    latestCount: number;
+    outdatedCount: number;
+    otherCount: number;
+    edrFeatureAdoptionCount: number;
+    virtualPatched: number;
+    virtualPartial: number;
+    virtualNot: number;
+  } | null;
+  internetFacingCves: InternetFacingCve[];
+  highRiskDevices: HighRiskDevice[];
   staleAccountCount: number | null;
   alerts: AlertSummary[];
   errors: Record<string, string>;
 }
 
-// ---------- Form input / editorial content (cra.md §2.3, §7) ----------
+// ---------- Form input (cra.md §7) — only what has no API source ----------
 
 export type SessionStatus = 'Completed' | 'Upcoming';
 
+// Prior-period trend columns are manual: the API only returns the current snapshot (cra.md §2.2).
 export interface TrendPoint {
   day1?: number;
   day30?: number;
   day60?: number;
   day90?: number;
-}
-
-export interface HeroMetric {
-  value: string;
-  label: string;
-  accent?: boolean; // render the value in red
 }
 
 export interface Finding {
@@ -135,12 +158,11 @@ export interface ReportConfig {
   coverTitle?: string;
   coverSubtitle?: string;
 
-  // §01 Executive Summary
-  executiveSummary: string;
-  hero?: HeroMetric[]; // up to 4 cards; blank → derived from live
-  whatChanged: string[];
+  // Optional human commentary — never replaces the live data, only adds context.
+  executiveSummary?: string;
+  whatChanged?: string[];
 
-  // §03 Risk Index trend (manual; Risk Index Day 90 defaults to live)
+  // §03 Risk Index trend — prior-period columns are manual; Day 90 comes from the live API.
   trend?: {
     riskIndex?: TrendPoint;
     exposure?: TrendPoint;
@@ -149,19 +171,10 @@ export interface ReportConfig {
   };
   riskIndexNote?: string;
 
-  // §04 Exposure Overview
-  exposure?: { narrative?: string; subNarrative?: string; findings?: string[] };
-
-  // §05 Security Configuration Overview
-  securityConfig?: { narrative?: string; endpointProtection?: string; featureAdoption?: string[]; endpointSensor?: string };
-
-  // §06 Attack Overview
-  attack?: { narrative?: string; detections?: string[] };
-
-  // §07 Recommendations
+  // §07 Recommendations — optional manual override; otherwise derived from live data.
   recommendations?: Finding[];
 
-  // §08 cadence
+  // §08 cadence — engagement logistics, no API source.
   sessions: Session[];
 
   dataSourceNotes?: string;

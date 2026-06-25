@@ -1,9 +1,10 @@
 // P4 — report.html.ts: render ReportModel -> self-contained HTML matching CyberRiskAdvisoryService.pdf.
-// 13-page layout: cover, exec summary, contents, methodology, risk index, exposure,
-// security config, attack, recommendations (paginated), cadence. TrendAI chrome on every page.
+// Data sections (01/03/04/05/06/07) render straight from the live Vision One pull (model.live).
+// Form text is only used where there is no API source: prior-period trend columns, sessions,
+// optional commentary, and optional manual recommendation overrides.
 
 import { REPORT_CSS } from './styles';
-import type { ReportModel, Finding, TrendPoint, HeroMetric, LiveData } from '../types';
+import type { ReportModel, Finding, TrendPoint, LiveData } from '../types';
 
 // ---------- formatting ----------
 const esc = (s: unknown): string =>
@@ -11,6 +12,8 @@ const esc = (s: unknown): string =>
 const DASH = '—';
 const fmt = (v: number | null | undefined): string =>
   v === null || v === undefined || Number.isNaN(v) ? DASH : Number.isInteger(v) ? v.toLocaleString('en-US') : String(v);
+const pct = (v: number | null | undefined): string => (v === null || v === undefined || Number.isNaN(v) ? DASH : `${Math.round(v)}%`);
+const cap = (s: string): string => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 const blist = (items: string[]): string =>
   items.length ? `<ul class="blist">${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>` : '';
@@ -28,28 +31,14 @@ const logo = (light = false): string => {
   </span>`;
 };
 
-// ---------- live-derived editorial defaults (cra.md §2.3) ----------
-function heroMetrics(model: ReportModel): HeroMetric[] {
-  if (model.config.hero?.length) return model.config.hero.slice(0, 4);
-  const l = model.live;
-  return [
-    { value: fmt(l.riskIndex), label: 'Risk Index — Latest', accent: true },
-    { value: l.cve?.mttpDays != null ? `${l.cve.mttpDays}d` : DASH, label: 'Mean Time to Patch' },
-    { value: l.coverageRate != null ? `${Math.round(l.coverageRate)}%` : DASH, label: 'VA Coverage' },
-    { value: fmt(l.staleAccountCount), label: 'Stale Accounts', accent: true },
-  ];
-}
+const card = (value: string, label: string, accent = false): string =>
+  `<div class="card"><div class="v ${accent ? 'accent' : ''}">${esc(value)}</div><div class="l">${esc(label)}</div></div>`;
 
-function attackDetections(model: ReportModel): string[] {
-  if (model.config.attack?.detections?.length) return model.config.attack.detections;
-  return model.live.alerts.slice(0, 6).map((a) => `${a.name} — ${a.entity} (${a.severity}${a.score != null ? `, score ${a.score}` : ''})`);
-}
-
+// ---------- derived recommendations (only when no manual override) ----------
 function recommendations(model: ReportModel): Finding[] {
   if (model.config.recommendations?.length) return model.config.recommendations;
   return deriveRecommendations(model.live);
 }
-
 function deriveRecommendations(l: LiveData): Finding[] {
   const out: Finding[] = [];
   if (l.cve && l.cve.count > 0)
@@ -57,8 +46,8 @@ function deriveRecommendations(l: LiveData): Finding[] {
       riskLevel: l.cve.count > 100 ? 'High' : 'Medium',
       category: 'Exposure',
       title: 'Highly Exploitable Unique CVEs',
-      detail: [`${fmt(l.cve.count)} highly-exploitable CVEs across the environment`, `Average unpatched time ${l.cve.averageUnpatchedDays} days`],
-      recommendation: ['Apply virtual patching or network isolation as interim mitigation.', 'Plan migration of legacy applications to supported platforms.'],
+      detail: [`${fmt(l.cve.count)} highly-exploitable CVEs detected`, `Average unpatched time ${l.cve.averageUnpatchedDays} days; density ${l.cve.density}`],
+      recommendation: ['Apply virtual patching or network isolation as interim mitigation.', 'Prioritise patching of internet-facing assets.'],
       status: 'Recommended',
     });
   if (l.staleAccountCount && l.staleAccountCount > 0)
@@ -68,6 +57,15 @@ function deriveRecommendations(l: LiveData): Finding[] {
       title: 'Stale Accounts',
       detail: [`${fmt(l.staleAccountCount)} accounts inactive > 180 days`],
       recommendation: ['Investigate and disable / delete inactive accounts.', 'Configure auto-deactivation at 90 or 180 days.'],
+      status: 'Recommended',
+    });
+  if (l.exposure && l.exposure.weakAuthenticationCount > 0)
+    out.push({
+      riskLevel: 'Medium',
+      category: 'Exposure',
+      title: 'Accounts with Weak Authentication',
+      detail: [`${fmt(l.exposure.weakAuthenticationCount)} accounts with weak authentication`, `${fmt(l.exposure.excessivePrivilegeCount)} with excessive privilege`],
+      recommendation: ['Enable password expiration / MFA on listed accounts.', 'Review excessive-privilege grants.'],
       status: 'Recommended',
     });
   if (l.alerts.length > 0)
@@ -84,20 +82,27 @@ function deriveRecommendations(l: LiveData): Finding[] {
 
 // ---------- page chrome ----------
 const HEADER = `<div class="phead">${logo()}<div class="right"><div>Cyber Risk Advisory ·</div><div>Service Overview</div></div></div>`;
-function footer(pageNum: number, total: number): string {
-  return `<div class="pfoot"><span><b>TrendAI</b> Vision One™ · Cyber Risk Advisory</span><span>Page <b>${pageNum}</b> / ${total}</span></div>`;
-}
-function shead(num: string, name: string, headline: string): string {
-  return `<div class="shead"><div class="label"><span class="num">${num}</span><span class="name">${esc(name)}</span></div><h1>${esc(headline)}</h1></div><div class="rule"></div>`;
-}
+const footer = (pageNum: number, total: number): string =>
+  `<div class="pfoot"><span><b>TrendAI</b> Vision One™ · Cyber Risk Advisory</span><span>Page <b>${pageNum}</b> / ${total}</span></div>`;
+const shead = (num: string, name: string, headline: string): string =>
+  `<div class="shead"><div class="label">${num ? `<span class="num">${num}</span>` : ''}<span class="name">${esc(name)}</span></div><h1>${esc(headline)}</h1></div><div class="rule"></div>`;
+const dataNotice = (model: ReportModel, key: string): string =>
+  model.live.errors[key] ? `<div class="notice">⚠ Live data unavailable — ${esc(model.live.errors[key])}</div>` : '';
 
-// ---------- §03 trend table ----------
-function trendCells(tp: TrendPoint | undefined, liveDay90?: number | null): string {
+// ---------- §03 trend cells ----------
+function trendCells(tp: TrendPoint | undefined, opts: { liveDay90?: number | null; levelDay90?: string } = {}): string {
   const p = tp ?? {};
-  const day90 = p.day90 ?? liveDay90 ?? undefined;
   const cell = (v: number | undefined) => (v === undefined || v === null ? `<td><span class="dash">${DASH}</span></td>` : `<td>${fmt(v)}</td>`);
-  const worse = day90 !== undefined && (p.day60 === undefined || day90 > p.day60);
-  const d90 = day90 === undefined ? `<td class="d90"><span class="dash">${DASH}</span></td>` : `<td class="d90 ${worse ? 'worse' : ''}">${fmt(day90)}</td>`;
+  const num90 = p.day90 ?? opts.liveDay90 ?? undefined;
+  let d90: string;
+  if (num90 !== undefined && num90 !== null) {
+    const worse = p.day60 === undefined || num90 > p.day60;
+    d90 = `<td class="d90 ${worse ? 'worse' : ''}">${fmt(num90)}</td>`;
+  } else if (opts.levelDay90 && opts.levelDay90 !== '—') {
+    d90 = `<td class="d90 ${opts.levelDay90.toLowerCase() === 'high' ? 'worse' : ''}">${esc(cap(opts.levelDay90))}</td>`;
+  } else {
+    d90 = `<td class="d90"><span class="dash">${DASH}</span></td>`;
+  }
   return `${cell(p.day1)}${cell(p.day30)}${cell(p.day60)}${d90}`;
 }
 
@@ -110,11 +115,7 @@ function cover(model: ReportModel): string {
       <div style="margin-top:18mm" class="eyebrow red">Cyber Risk Advisory</div>
       <h1>${esc(c.coverTitle ?? 'Service Overview &\nReporting').replace(/\n/g, '<br>')}</h1>
       <div class="sub">${esc(c.coverSubtitle ?? 'A continuous, AI-driven engagement that turns telemetry into prioritized action — measuring exposure, attack activity, and security configuration across your environment every 30 days.')}</div>
-      <div class="powered">
-        <span class="eyebrow">Powered by</span>
-        ${logo(true)}
-        <div class="v1">Vision One</div>
-      </div>
+      <div class="powered"><span class="eyebrow">Powered by</span>${logo(true)}<div class="v1">Vision One</div></div>
     </div>
     <div class="cover-meta">
       <div><div class="k">Prepared for</div><div class="v">${esc(c.customerName)}</div></div>
@@ -125,16 +126,21 @@ function cover(model: ReportModel): string {
 }
 
 function execSummary(model: ReportModel, pg: number, total: number): string {
-  const cards = heroMetrics(model)
-    .map((m) => `<div class="card"><div class="v ${m.accent ? 'accent' : ''}">${esc(m.value)}</div><div class="l">${esc(m.label)}</div></div>`)
-    .join('');
+  const l = model.live;
+  const cards =
+    card(fmt(l.riskIndex), 'Risk Index — Latest', true) +
+    card(l.cve?.mttpDays != null ? `${l.cve.mttpDays}d` : DASH, 'Mean Time to Patch') +
+    card(pct(l.coverageRate), 'VA Coverage') +
+    card(fmt(l.staleAccountCount), 'Stale Accounts', true);
+  const intro = model.config.executiveSummary?.trim()
+    ? paras(model.config.executiveSummary)
+    : `<p>This advisory reflects the latest Trend Vision One™ pull${l.createdDateTime ? ` captured ${esc(l.createdDateTime.slice(0, 10))}` : ''}. The metrics below are read live from Attack Surface Risk Management, Workbench, and account telemetry.</p>`;
   return `<div class="page">${HEADER}
     ${shead('01', 'Executive Summary', 'Risk posture, in one read.')}
-    ${model.live.errors.securityPosture ? `<div class="notice">⚠ Live posture data unavailable (${esc(model.live.errors.securityPosture)}). Metrics below reflect manual input only.</div>` : ''}
-    ${paras(model.config.executiveSummary, 'Summary pending.')}
+    ${dataNotice(model, 'securityPosture')}
+    ${intro}
     <div class="cards">${cards}</div>
-    <h3>What changed this cycle</h3>
-    ${blist(model.config.whatChanged)}
+    ${model.config.whatChanged?.length ? `<h3>What changed this cycle</h3>${blist(model.config.whatChanged)}` : ''}
     ${footer(pg, total)}
   </div>`;
 }
@@ -154,7 +160,7 @@ function contents(pages: Record<string, number>, pg: number, total: number): str
     .map(([n, t, d, p]) => `<div class="toc-row"><span class="n">${n}</span><div><div class="t">${esc(t)}</div><div class="d">${esc(d)}</div></div><span class="pg">${String(p).padStart(2, '0')}</span></div>`)
     .join('');
   return `<div class="page">${HEADER}
-    ${shead('', 'Contents', 'What this report covers.').replace('<span class="num"></span>', '')}
+    ${shead('', 'Contents', 'What this report covers.')}
     <p class="lead">A Cyber Risk Advisory engagement is structured around four sessions over 90 days. Each session reviews the same eight sections so progress is directly comparable cycle-over-cycle.</p>
     <div class="toc">${toc}</div>
     ${footer(pg, total)}
@@ -184,17 +190,19 @@ function methodology(pg: number, total: number): string {
 
 function riskIndex(model: ReportModel, pg: number, total: number): string {
   const t = model.config.trend ?? {};
-  const note = model.config.riskIndexNote ?? 'Reading the index — scores are on a 0–100 scale where lower is better. Day-over-day movement is more informative than the absolute number; a category that flatlines usually signals an unresolved structural issue, not stability.';
+  const lv = model.live.categoryLevels;
+  const note = model.config.riskIndexNote ?? 'Reading the index — scores are on a 0–100 scale where lower is better. Day-over-day movement is more informative than the absolute number; prior-period columns are entered manually as the API returns only the current snapshot.';
   return `<div class="page">${HEADER}
     ${shead('03', 'Risk Index Overview', 'A single number for the boardroom.')}
-    <p class="lead">The Cyber Risk Index measures organisational risk based on multiple cyber risk factors. It provides a high-level view of potential impacts on assets such as users, devices, applications, internet-facing domains, and cloud resources. The table below shows current risk levels across the engagement timeline.</p>
+    ${dataNotice(model, 'securityPosture')}
+    <p class="lead">The Cyber Risk Index measures organisational risk based on multiple cyber risk factors across users, devices, applications, internet-facing domains, and cloud resources. Day 90 is read live from the API (overall index as a number, categories as risk levels); earlier columns are manual.</p>
     <table class="trend">
       <thead><tr><th>Category</th><th>Day 1</th><th>Day 30</th><th>Day 60</th><th>Day 90</th></tr></thead>
       <tbody>
-        <tr class="rowhi"><td>Risk Index</td>${trendCells(t.riskIndex, model.live.riskIndex)}</tr>
-        <tr><td>Exposure Overview</td>${trendCells(t.exposure)}</tr>
-        <tr><td>Attack Overview</td>${trendCells(t.attack)}</tr>
-        <tr><td>Security Configuration</td>${trendCells(t.securityConfiguration)}</tr>
+        <tr class="rowhi"><td>Risk Index</td>${trendCells(t.riskIndex, { liveDay90: model.live.riskIndex })}</tr>
+        <tr><td>Exposure</td>${trendCells(t.exposure, { levelDay90: lv.exposure })}</tr>
+        <tr><td>Attack</td>${trendCells(t.attack, { levelDay90: lv.attack })}</tr>
+        <tr><td>Security Configuration</td>${trendCells(t.securityConfiguration, { levelDay90: lv.securityConfiguration })}</tr>
       </tbody>
     </table>
     <p class="muted">${esc(note)}</p>
@@ -203,41 +211,84 @@ function riskIndex(model: ReportModel, pg: number, total: number): string {
 }
 
 function exposure(model: ReportModel, pg: number, total: number): string {
-  const ex = model.config.exposure ?? {};
+  const l = model.live;
+  const e = l.exposure;
+  const cveRows =
+    l.internetFacingCves.length === 0
+      ? `<tr><td colspan="5" class="muted">${l.errors.internetFacingCves ? 'Data unavailable.' : 'No internet-facing CVEs returned.'}</td></tr>`
+      : l.internetFacingCves
+          .slice(0, 8)
+          .map((v) => `<tr><td>${esc(v.cveId)}</td><td class="ar">${fmt(v.cveRiskScore)}</td><td class="ar">${fmt(v.cvssScore)}</td><td class="ar">${fmt(v.affectedAssetCount)}</td><td>${esc(cap(v.globalExploitActivityLevel))}</td></tr>`)
+          .join('');
   return `<div class="page">${HEADER}
     ${shead('04', 'Exposure Overview', 'Internet-facing assets, vulnerabilities, and accounts.')}
-    <p class="lead">${esc(ex.narrative ?? 'Internet-facing surfaces, vulnerability coverage, and account hygiene for this cycle.')}</p>
-    <h3>Internal asset vulnerabilities</h3>
-    ${paras(ex.subNarrative, 'Vulnerability detail pending review.')}
-    <h3>System configuration vulnerabilities</h3>
-    ${blist(ex.findings ?? [])}
+    ${dataNotice(model, 'securityPosture')}
+    <div class="cards">
+      ${card(pct(l.coverageRate), 'VA Coverage')}
+      ${card(fmt(l.cve?.count ?? null), 'Highly-Exploitable CVEs')}
+      ${card(fmt(l.cve?.density ?? null), 'CVE Density')}
+      ${card(l.cve ? `${l.cve.averageUnpatchedDays}d` : DASH, 'Avg Unpatched Time')}
+    </div>
+    <h3>Account misconfiguration</h3>
+    <table class="kv"><thead><tr><th>Weak authentication</th><th>Excessive privilege</th><th>Increases attack surface</th><th>Stale (&gt;180d)</th></tr></thead>
+      <tbody><tr><td class="ar">${fmt(e?.weakAuthenticationCount ?? null)}</td><td class="ar">${fmt(e?.excessivePrivilegeCount ?? null)}</td><td class="ar">${fmt(e?.increaseAttackSurfaceRiskCount ?? null)}</td><td class="ar">${fmt(l.staleAccountCount)}</td></tr></tbody>
+    </table>
+    <h3>Insecure hosts &amp; internet-facing interfaces</h3>
+    <table class="kv"><thead><tr><th>Insecure hosts</th><th>Connection issues</th><th>Exposed ports</th><th>Public IPs</th></tr></thead>
+      <tbody><tr><td class="ar">${fmt(e?.insecureHostCount ?? null)}</td><td class="ar">${fmt(e?.connectionIssueCount ?? null)}</td><td class="ar">${fmt(e?.servicePortCount ?? null)}</td><td class="ar">${fmt(e?.publicIpCount ?? null)}</td></tr></tbody>
+    </table>
+    <h3>Top internet-facing CVEs</h3>
+    <table class="kv"><thead><tr><th>CVE</th><th class="ar">Risk score</th><th class="ar">CVSS</th><th class="ar">Affected</th><th>Global exploit activity</th></tr></thead>
+      <tbody>${cveRows}</tbody>
+    </table>
     ${footer(pg, total)}
   </div>`;
 }
 
 function securityConfig(model: ReportModel, pg: number, total: number): string {
-  const s = model.config.securityConfig ?? {};
+  const s = model.live.securityConfig;
   return `<div class="page">${HEADER}
     ${shead('05', 'Security Configuration Overview', 'Endpoint protection, sensors, and feature adoption.')}
-    <p class="lead">${esc(s.narrative ?? 'Endpoint protection coverage, sensor adoption, and feature configuration for this cycle.')}</p>
-    <h3>Endpoint protection</h3>
-    ${paras(s.endpointProtection, 'Endpoint protection summary pending.')}
-    <h3>Key feature adoption &amp; pattern update status</h3>
-    ${blist(s.featureAdoption ?? [])}
-    <h3>Endpoint sensor</h3>
-    ${paras(s.endpointSensor, 'Endpoint sensor summary pending.')}
+    ${dataNotice(model, 'securityPosture')}
+    <div class="cards">
+      ${card(fmt(s?.agentAdoptionCount ?? null), 'Agent Adoption')}
+      ${card(fmt(s?.edrFeatureAdoptionCount ?? null), 'EDR / XDR Adoption')}
+      ${card(fmt(s?.latestCount ?? null), 'Agents on Latest')}
+      ${card(fmt(s?.virtualPatched ?? null), 'CVEs Virtually Patched')}
+    </div>
+    <h3>Agent version status</h3>
+    <table class="kv"><thead><tr><th class="ar">Latest</th><th class="ar">Outdated</th><th class="ar">Other</th></tr></thead>
+      <tbody><tr><td class="ar">${fmt(s?.latestCount ?? null)}</td><td class="ar">${fmt(s?.outdatedCount ?? null)}</td><td class="ar">${fmt(s?.otherCount ?? null)}</td></tr></tbody>
+    </table>
+    <h3>Virtual patching coverage</h3>
+    <table class="kv"><thead><tr><th class="ar">Fully patched</th><th class="ar">Partially patched</th><th class="ar">Not patched</th></tr></thead>
+      <tbody><tr><td class="ar">${fmt(s?.virtualPatched ?? null)}</td><td class="ar">${fmt(s?.virtualPartial ?? null)}</td><td class="ar">${fmt(s?.virtualNot ?? null)}</td></tr></tbody>
+    </table>
     ${footer(pg, total)}
   </div>`;
 }
 
 function attack(model: ReportModel, pg: number, total: number): string {
-  const a = model.config.attack ?? {};
+  const l = model.live;
+  const alertRows =
+    l.alerts.length === 0
+      ? `<tr><td colspan="4" class="muted">${l.errors.alerts ? 'Data unavailable.' : 'No Workbench alerts returned for the selected window.'}</td></tr>`
+      : l.alerts
+          .slice(0, 12)
+          .map((a) => `<tr><td>${esc(a.name)}</td><td>${esc(cap(a.severity))}${a.score != null ? ` <span class="muted">(${fmt(a.score)})</span>` : ''}</td><td>${esc(a.entity)}</td><td>${esc(a.time ? a.time.slice(0, 16).replace('T', ' ') : DASH)}</td></tr>`)
+          .join('');
+  const devRows =
+    l.highRiskDevices.length === 0
+      ? `<tr><td colspan="3" class="muted">No high-risk devices returned.</td></tr>`
+      : l.highRiskDevices.slice(0, 8).map((d) => `<tr><td>${esc(d.deviceName)}</td><td class="ar">${fmt(d.riskScore)}</td><td>${esc(d.os)}</td></tr>`).join('');
   return `<div class="page">${HEADER}
     ${shead('06', 'Attack Overview', 'Detections, prioritized.')}
-    <p class="lead">${esc(a.narrative ?? 'XDR detections across endpoints, identity, network, and cloud for this cycle.')}</p>
+    <p class="lead">XDR detections and high-risk assets read live from Vision One Workbench and Attack Surface Risk Management for the reporting window.</p>
     <h3>XDR detection summary</h3>
-    ${model.live.errors.alerts ? '<div class="notice">⚠ Live Workbench data unavailable.</div>' : ''}
-    ${blist(attackDetections(model))}
+    ${dataNotice(model, 'alerts')}
+    <table class="kv"><thead><tr><th>Detection</th><th>Severity</th><th>Entity</th><th>Time (UTC)</th></tr></thead><tbody>${alertRows}</tbody></table>
+    <h3>High-risk assets</h3>
+    <table class="kv"><thead><tr><th>Device</th><th class="ar">Risk score</th><th>OS</th></tr></thead><tbody>${devRows}</tbody></table>
     ${footer(pg, total)}
   </div>`;
 }
@@ -256,15 +307,14 @@ function recPages(model: ReportModel, startPg: number, total: number): string[] 
   const perPage = 3;
   const chunks: Finding[][] = [];
   for (let i = 0; i < Math.max(findings.length, 1); i += perPage) chunks.push(findings.slice(i, i + perPage));
-
   return chunks.map((chunk, idx) => {
-    const head = idx === 0;
-    const body = head
-      ? `${shead('07', 'Recommendations & Continued Actions', 'A prioritized roadmap to lower the index.')}
-         <p class="lead">Each row pairs a finding with a recommendation, a status, and the Vision One path to find supporting evidence. High-impact items should be closed before the Day 90 review; medium and low items roll into the next 90-day cycle.</p>
-         <table class="recs"><thead><tr><th>Risk</th><th>Category</th><th>Finding</th><th>Recommendation</th></tr></thead>
-         <tbody>${chunk.length ? chunk.map(recRow).join('') : '<tr><td colspan="4" class="muted">No recommendations recorded.</td></tr>'}</tbody></table>`
-      : `<table class="recs"><tbody>${chunk.map(recRow).join('')}</tbody></table>`;
+    const body =
+      idx === 0
+        ? `${shead('07', 'Recommendations & Continued Actions', 'A prioritized roadmap to lower the index.')}
+           <p class="lead">Each row pairs a finding with a recommendation and a status. High-impact items should be closed before the Day 90 review; medium and low items roll into the next 90-day cycle. Findings are derived from the live pull unless overridden.</p>
+           <table class="recs"><thead><tr><th>Risk</th><th>Category</th><th>Finding</th><th>Recommendation</th></tr></thead>
+           <tbody>${chunk.length ? chunk.map(recRow).join('') : '<tr><td colspan="4" class="muted">No findings derived from the current data.</td></tr>'}</tbody></table>`
+        : `<table class="recs"><tbody>${chunk.map(recRow).join('')}</tbody></table>`;
     return `<div class="page">${HEADER}${body}${footer(startPg + idx, total)}</div>`;
   });
 }
@@ -290,21 +340,9 @@ function cadence(model: ReportModel, pg: number, total: number): string {
 }
 
 export function renderReport(model: ReportModel): string {
-  // Pre-compute page numbers (cover=1). Recommendations may span multiple pages.
-  const findings = recommendations(model);
-  const recPageCount = Math.max(1, Math.ceil(findings.length / 3));
-  const pages = {
-    exec: 2,
-    contents: 3,
-    method: 4,
-    risk: 5,
-    exposure: 6,
-    secconfig: 7,
-    attack: 8,
-    recs: 9,
-    cadence: 9 + recPageCount,
-  };
-  const total = 9 + recPageCount; // cover + 8 content slots, recs offset already in cadence
+  const recPageCount = Math.max(1, Math.ceil(recommendations(model).length / 3));
+  const pages = { exec: 2, contents: 3, method: 4, risk: 5, exposure: 6, secconfig: 7, attack: 8, recs: 9, cadence: 9 + recPageCount };
+  const total = 9 + recPageCount;
 
   const body = [
     cover(model),

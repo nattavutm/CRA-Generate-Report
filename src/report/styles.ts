@@ -119,6 +119,11 @@ table { width: 100%; border-collapse: collapse; margin: 4px 0 16px; }
 thead th { background: var(--black); color: #fff; text-align: left; font-size: 9.5px; font-weight: 700; letter-spacing: .24em; text-transform: uppercase; padding: 14px 16px; }
 tbody td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 11.5px; color: var(--body); }
 
+/* data tables (live values) */
+.kv td { font-size: 12px; color: var(--ink); }
+.ar { text-align: right; font-variant-numeric: tabular-nums; }
+th.ar { text-align: right; }
+
 /* trend table */
 .trend td { text-align: center; font-weight: 700; color: var(--ink); font-size: 14px; }
 .trend td:first-child, .trend th:first-child { text-align: left; }

@@ -60,19 +60,24 @@ wrangler secret put V1_API_TOKEN
 ```
 
 ## Output design
-The PDF reproduces `CyberRiskAdvisoryService.pdf`: black cover, red accent, TrendAI header/footer on
-every page, a contents page, a methodology page with numbered steps, the Risk Index trend table
-(Day 90 turns red when worse than Day 60), narrative + red-square-bullet sections, the colored-risk
-recommendations table (paginated 3 findings/page), and the cadence page with the "AI Fearlessly"
-callout. The generate form (`GET /`) is **pre-filled with the reference sample**, so a fresh
-**Generate PDF** produces a report matching the reference; edit any field for a real engagement.
+The PDF matches the visual design of `CyberRiskAdvisoryService.pdf`: black cover, red accent, TrendAI
+header/footer on every page, a contents page, a methodology page, the Risk Index trend table
+(Day 90 turns red when worse than Day 60), live-data metric cards and tables, the colored-risk
+recommendations table (paginated 3 findings/page), and the cadence page with the "AI Fearlessly" callout.
+
+**All metrics, tables, and findings render live from the Trend Vision One API** — the form does not
+supply report content. The form only collects what the API has no source for: the token, engagement
+labels, prior-period trend numbers (Day 1/30/60), optional commentary, optional manual recommendation
+overrides, and the session schedule.
 
 ## Design decisions (from the spec)
-- **Trend table:** Risk Index Day 90 is filled live from the API; all other cells are **manual** form
-  inputs, blank → `—`.
-- **Editorial text is human-owned** — narrative is never auto-asserted from data. The AI draft lands in
-  an editable field for review; it is never injected into the PDF directly. Hero metric cards and the
-  attack detection list fall back to live data only when left blank.
+- **Data-driven:** Executive cards, Exposure/Security-Configuration/Attack tables, and the Risk Index
+  Day 90 column come straight from `securityPosture`, `workbench/alerts`, and account telemetry.
+- **Trend table:** Day 90 is live; Day 1/30/60 are **manual** inputs (API returns only the current
+  snapshot), blank → `—`.
+- **Recommendations** are derived from the live data unless the user adds manual override rows.
+- **Commentary is optional and human-owned** — the AI draft lands in an editable field for review and
+  is never injected into the PDF directly.
 - **Graceful degradation:** one failing collector renders a "data unavailable" notice, not a 500.
-- Each section is one fixed A4 page (`height: 297mm; overflow: hidden`) to keep pagination and page
-  numbers exact — very long custom narratives may clip; trim to fit.
+- Each section is one fixed A4 page (`height: 297mm; overflow: hidden`) to keep pagination/page numbers
+  exact — unusually long content may clip.
