@@ -127,14 +127,6 @@ export interface LiveData {
 
 export type SessionStatus = 'Completed' | 'Upcoming';
 
-// Prior-period trend columns are manual: the API only returns the current snapshot (cra.md §2.2).
-export interface TrendPoint {
-  day1?: number;
-  day30?: number;
-  day60?: number;
-  day90?: number;
-}
-
 export interface Finding {
   riskLevel: 'High' | 'Medium' | 'Low';
   category: 'Exposure' | 'Attack' | 'Configuration';
@@ -162,13 +154,7 @@ export interface ReportConfig {
   executiveSummary?: string;
   whatChanged?: string[];
 
-  // §03 Risk Index trend — prior-period columns are manual; Day 90 comes from the live API.
-  trend?: {
-    riskIndex?: TrendPoint;
-    exposure?: TrendPoint;
-    attack?: TrendPoint;
-    securityConfiguration?: TrendPoint;
-  };
+  // §03 Risk Index — current snapshot only (the API returns no history).
   riskIndexNote?: string;
 
   // §07 Recommendations — optional manual override; otherwise derived from live data.

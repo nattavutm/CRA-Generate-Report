@@ -132,7 +132,15 @@ th.ar { text-align: right; }
 .trend .rowhi td:first-child { font-weight: 800; }
 .trend .d90.worse { color: var(--accent); }
 .trend .d90.pink { background: var(--accent-pink); }
+.trend .worse { color: var(--accent); font-weight: 800; }
 .trend .dash { color: var(--muted); font-weight: 400; }
+
+/* current risk level tag */
+.lvl { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+.lvl.high { background: var(--accent-pink); color: var(--accent); }
+.lvl.medium { background: #fdecd2; color: #b45309; }
+.lvl.low { background: #e2ebfd; color: #1d4ed8; }
+.lvl.na { color: var(--muted); font-weight: 400; }
 
 /* recommendations table */
 .recs td { vertical-align: top; }

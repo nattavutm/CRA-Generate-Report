@@ -1,6 +1,6 @@
 // §10 — single-page generate form served at GET /. No localStorage.
 // The report's DATA comes from the live Vision One API. This form only collects what the API
-// cannot provide: the token, engagement labels, prior-period trend numbers, optional commentary,
+// cannot provide: the token, engagement labels, optional commentary,
 // optional manual recommendation overrides, and the session schedule.
 
 export function renderForm(regions: string[], defaultRegion: string): string {
@@ -11,19 +11,10 @@ export function renderForm(regions: string[], defaultRegion: string): string {
   // Client script. Backticks and ${ } are escaped (\` , \${) so they survive server interpolation.
   const script = `
 const SESSIONS = ['Day 1 — Kickoff & Baseline','Day 30 — First Review','Day 60 — Mid-Cycle Review','Day 90 — Outcome Review'];
-const TREND = [['riskIndex','Risk Index'],['exposure','Exposure'],['attack','Attack'],['securityConfiguration','Security Configuration']];
 
 const $ = s => document.querySelector(s);
 const val = n => { const el = document.querySelector('[name="'+n+'"]'); return el ? el.value : ''; };
-const numU = v => v===''||v==null ? undefined : Number(v);
 const lines = s => s.split('\\n').map(x=>x.trim()).filter(Boolean);
-function tp(prefix){ const o={day1:numU(val(prefix+'_d1')),day30:numU(val(prefix+'_d30')),day60:numU(val(prefix+'_d60'))};
-  return (o.day1===undefined&&o.day30===undefined&&o.day60===undefined)?undefined:o; }
-
-// ---- trend (prior periods only; Day 90 comes from the API) ----
-$('#trend').innerHTML = TREND.map(([k,lbl])=>
-  '<div class="row4"><input value="'+lbl+'" disabled>'+
-  ['d1','d30','d60'].map(c=>'<input type="number" step="any" name="'+k+'_'+c+'" placeholder="—">').join('')+'</div>').join('');
 
 // ---- sessions ----
 $('#sessions').innerHTML = SESSIONS.map((s,i)=>
@@ -51,21 +42,25 @@ $('#recs').addEventListener('input', e=>{ if(e.target.dataset.f){ const i=+e.tar
 $('#recs').addEventListener('click', e=>{ if(e.target.classList.contains('del')){ syncRecs(); RECS.splice(+e.target.dataset.i,1); renderRecs(); }});
 $('#addRec').onclick = ()=>{ syncRecs(); RECS.push({riskLevel:'Medium',category:'Exposure',title:'',detail:[],recommendation:[],status:'Recommended'}); renderRecs(); };
 
+function workbenchRange(){
+  const days = Number(val('wbDays')||30);
+  const end = new Date();
+  const start = new Date(end.getTime() - days*86400000);
+  return { startDateTime: start.toISOString(), endDateTime: end.toISOString() };
+}
 function buildConfig(){
   if(!$('#f').reportValidity()) return null;
   syncRecs();
-  const trend = {}; TREND.forEach(([k])=>{ const v=tp(k); if(v) trend[k]=v; });
   return {
     customerName: val('customerName'), region: val('region'),
     engagement: { docId: val('docId'), cycleLabel: val('cycleLabel') },
     coverSubtitle: val('coverSubtitle')||undefined,
     executiveSummary: val('executiveSummary')||undefined,
     whatChanged: lines(val('whatChanged')),
-    trend: Object.keys(trend).length?trend:undefined,
     recommendations: RECS.length?RECS:undefined,
     sessions: SESSIONS.map((_,i)=>({ label:val('s_label_'+i), date:val('s_date_'+i), time:val('s_time_'+i), status:val('s_status_'+i) })),
     dataSourceNotes: val('dataSourceNotes')||undefined,
-    workbench: { startDateTime: val('wbStart')||undefined, endDateTime: val('wbEnd')||undefined }
+    workbench: workbenchRange()
   };
 }
 function status(msg,kind){ const s=$('#status'); s.textContent=msg; s.className='show '+kind; }
@@ -128,7 +123,7 @@ $('#draftBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; statu
 <header><span class="dot"></span><h1>Cyber Risk Advisory — Report Generator</h1></header>
 <main>
   <div id="status"></div>
-  <div class="intro">All metrics, tables, and findings in the report are pulled <b>live from the Trend Vision One API</b>. The fields below only cover what the API can't provide — engagement labels, prior-period trend numbers, the session schedule, and optional commentary.</div>
+  <div class="intro">All metrics, tables, and findings in the report are pulled <b>live from the Trend Vision One API</b> (current snapshot). The fields below only cover what the API can't provide — engagement labels, the session schedule, and optional commentary.</div>
   <form id="f" autocomplete="off">
     <fieldset><legend>Vision One access</legend>
       <label>API token (Bearer) — used once for this report, not saved</label>
@@ -147,17 +142,14 @@ $('#draftBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; statu
     </fieldset>
 
     <fieldset><legend>Workbench alert window</legend>
-      <div class="grid2">
-        <div><label>Start (ISO)</label><input name="wbStart" placeholder="2024-10-28T00:00:00Z"></div>
-        <div><label>End (ISO)</label><input name="wbEnd" placeholder="2025-01-27T00:00:00Z"></div>
-      </div>
+      <label>Pull XDR detections from the last</label>
+      <select name="wbDays">
+        <option value="1">1 day</option>
+        <option value="7">7 days</option>
+        <option value="14">14 days</option>
+        <option value="30" selected>30 days</option>
+      </select>
       <p class="hint">Bounds the live XDR detection pull for the Attack Overview section.</p>
-    </fieldset>
-
-    <fieldset><legend>Risk Index — prior periods (manual)</legend>
-      <div class="colhdr"><span>Category</span><span>Day 1</span><span>Day 30</span><span>Day 60</span></div>
-      <div id="trend"></div>
-      <p class="hint">The API returns only the current snapshot, so earlier columns are entered by hand if you have them. Day 90 is filled live (overall index as a number, categories as risk levels). Blank → "—".</p>
     </fieldset>
 
     <fieldset><legend>Commentary (optional)</legend>

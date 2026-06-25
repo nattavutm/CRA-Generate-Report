@@ -4,7 +4,7 @@
 // optional commentary, and optional manual recommendation overrides.
 
 import { REPORT_CSS } from './styles';
-import type { ReportModel, Finding, TrendPoint, LiveData } from '../types';
+import type { ReportModel, Finding, LiveData } from '../types';
 
 // ---------- formatting ----------
 const esc = (s: unknown): string =>
@@ -89,21 +89,11 @@ const shead = (num: string, name: string, headline: string): string =>
 const dataNotice = (model: ReportModel, key: string): string =>
   model.live.errors[key] ? `<div class="notice">⚠ Live data unavailable — ${esc(model.live.errors[key])}</div>` : '';
 
-// ---------- §03 trend cells ----------
-function trendCells(tp: TrendPoint | undefined, opts: { liveDay90?: number | null; levelDay90?: string } = {}): string {
-  const p = tp ?? {};
-  const cell = (v: number | undefined) => (v === undefined || v === null ? `<td><span class="dash">${DASH}</span></td>` : `<td>${fmt(v)}</td>`);
-  const num90 = p.day90 ?? opts.liveDay90 ?? undefined;
-  let d90: string;
-  if (num90 !== undefined && num90 !== null) {
-    const worse = p.day60 === undefined || num90 > p.day60;
-    d90 = `<td class="d90 ${worse ? 'worse' : ''}">${fmt(num90)}</td>`;
-  } else if (opts.levelDay90 && opts.levelDay90 !== '—') {
-    d90 = `<td class="d90 ${opts.levelDay90.toLowerCase() === 'high' ? 'worse' : ''}">${esc(cap(opts.levelDay90))}</td>`;
-  } else {
-    d90 = `<td class="d90"><span class="dash">${DASH}</span></td>`;
-  }
-  return `${cell(p.day1)}${cell(p.day30)}${cell(p.day60)}${d90}`;
+// ---------- §03 current risk level ----------
+function levelTag(level: string): string {
+  const l = (level || '').toLowerCase();
+  const cls = l === 'high' || l === 'medium' || l === 'low' ? l : 'na';
+  return `<span class="lvl ${cls}">${l === 'na' ? DASH : esc(cap(level))}</span>`;
 }
 
 // ---------- pages ----------
@@ -189,20 +179,20 @@ function methodology(pg: number, total: number): string {
 }
 
 function riskIndex(model: ReportModel, pg: number, total: number): string {
-  const t = model.config.trend ?? {};
   const lv = model.live.categoryLevels;
-  const note = model.config.riskIndexNote ?? 'Reading the index — scores are on a 0–100 scale where lower is better. Day-over-day movement is more informative than the absolute number; prior-period columns are entered manually as the API returns only the current snapshot.';
+  const ri = model.live.riskIndex;
+  const note = model.config.riskIndexNote ?? 'Scores reflect the current Vision One snapshot. The overall Cyber Risk Index is reported as a 0–100 number (lower is better); each category is reported as a risk level (low / medium / high).';
   return `<div class="page">${HEADER}
     ${shead('03', 'Risk Index Overview', 'A single number for the boardroom.')}
     ${dataNotice(model, 'securityPosture')}
-    <p class="lead">The Cyber Risk Index measures organisational risk based on multiple cyber risk factors across users, devices, applications, internet-facing domains, and cloud resources. Day 90 is read live from the API (overall index as a number, categories as risk levels); earlier columns are manual.</p>
+    <p class="lead">The Cyber Risk Index measures organisational risk based on multiple cyber risk factors across users, devices, applications, internet-facing domains, and cloud resources. The values below are read live from the API and reflect the current snapshot.</p>
     <table class="trend">
-      <thead><tr><th>Category</th><th>Day 1</th><th>Day 30</th><th>Day 60</th><th>Day 90</th></tr></thead>
+      <thead><tr><th>Category</th><th>Current</th></tr></thead>
       <tbody>
-        <tr class="rowhi"><td>Risk Index</td>${trendCells(t.riskIndex, { liveDay90: model.live.riskIndex })}</tr>
-        <tr><td>Exposure</td>${trendCells(t.exposure, { levelDay90: lv.exposure })}</tr>
-        <tr><td>Attack</td>${trendCells(t.attack, { levelDay90: lv.attack })}</tr>
-        <tr><td>Security Configuration</td>${trendCells(t.securityConfiguration, { levelDay90: lv.securityConfiguration })}</tr>
+        <tr class="rowhi"><td>Risk Index</td><td class="${ri != null && ri >= 70 ? 'worse' : ''}">${fmt(ri)}</td></tr>
+        <tr><td>Exposure</td><td>${levelTag(lv.exposure)}</td></tr>
+        <tr><td>Attack</td><td>${levelTag(lv.attack)}</td></tr>
+        <tr><td>Security Configuration</td><td>${levelTag(lv.securityConfiguration)}</td></tr>
       </tbody>
     </table>
     <p class="muted">${esc(note)}</p>

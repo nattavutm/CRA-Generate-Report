@@ -25,7 +25,6 @@ function validateConfig(body: unknown): ReportConfig {
     coverSubtitle: c.coverSubtitle,
     executiveSummary: c.executiveSummary,
     whatChanged: Array.isArray(c.whatChanged) ? c.whatChanged : [],
-    trend: c.trend,
     riskIndexNote: c.riskIndexNote,
     recommendations: Array.isArray(c.recommendations) ? c.recommendations : undefined,
     sessions: Array.isArray(c.sessions) ? c.sessions : [],

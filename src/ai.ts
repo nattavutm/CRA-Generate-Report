@@ -12,7 +12,6 @@ export async function draftWhatChanged(env: Env, model: ReportModel): Promise<st
   const facts = {
     customer: model.config.customerName,
     riskIndex: l.riskIndex,
-    riskIndexTrend: model.config.trend?.riskIndex,
     categoryLevels: l.categoryLevels,
     cve: l.cve,
     coverageRate: l.coverageRate,
