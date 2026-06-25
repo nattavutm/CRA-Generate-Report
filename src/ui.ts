@@ -80,10 +80,14 @@ $('#pdfBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; status(
     const b=await r.blob(), u=URL.createObjectURL(b), a=document.createElement('a'); a.href=u; a.download=(c.customerName||'cra')+'-report.pdf'; a.click(); URL.revokeObjectURL(u); status('PDF generated.','ok');
   }catch(e){ status('Error: '+e.message,'err'); } };
 
-$('#previewBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; status('Pulling live data and building HTML preview…','work');
-  try{ const r=await post('/api/preview',c); if(!r.ok){ status('Failed: '+(await r.text()),'err'); return; }
-    const h=await r.text(), w=window.open('','_blank'); w.document.open(); w.document.write(h); w.document.close(); status('Preview opened in new tab.','ok');
-  }catch(e){ status('Error: '+e.message,'err'); } };
+$('#previewBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return;
+  const w=window.open('','_blank'); // open synchronously within the click gesture (avoids popup block)
+  status('Pulling live data and building HTML preview…','work');
+  try{ const r=await post('/api/preview',c); if(!r.ok){ if(w)w.close(); status('Failed: '+(await r.text()),'err'); return; }
+    const h=await r.text();
+    if(w){ w.document.open(); w.document.write(h); w.document.close(); status('Preview opened in new tab.','ok'); }
+    else { const u=URL.createObjectURL(new Blob([h],{type:'text/html'})); const a=document.createElement('a'); a.href=u; a.target='_blank'; a.rel='noopener'; a.click(); status('Preview opened (allow pop-ups if it did not).','ok'); }
+  }catch(e){ if(w)w.close(); status('Error: '+e.message,'err'); } };
 
 $('#draftBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; status('Asking AI to draft "What changed" (review before use)…','work');
   try{ const r=await post('/api/draft',c); if(!r.ok){ status('Draft failed: '+(await r.text()),'err'); return; }
