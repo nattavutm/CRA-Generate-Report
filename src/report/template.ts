@@ -148,6 +148,7 @@ function assetGroups(model: ReportModel, pg: number, total: number): string {
   const body = rows.length === 0 ? emptyRow(5, 'No asset groups returned.') : rows.map((g, i) => `<tr>${rank(i)}<td>${esc(g.name)}</td><td class="ar">${fmt(g.assetCount ?? null)}</td><td class="ar">${fmt(g.riskIndex ?? null)}</td><td>${levelTag(g.riskLevel)}</td></tr>`).join('');
   return page(
     `${shead('02', 'Risk Index by Asset Group', 'Where the risk concentrates.')}
+     ${dataNotice(model, 'assetGroups')}
      <table class="kv"><thead><tr><th class="rk">#</th><th>Asset group</th><th class="ar">Assets</th><th class="ar">Risk index</th><th>Risk level</th></tr></thead><tbody>${body}</tbody></table>`,
     pg,
     total,
@@ -172,6 +173,7 @@ function highRiskDevices(model: ReportModel, pg: number, total: number): string 
   const body = rows.length === 0 ? emptyRow(6, 'No high-risk devices returned.') : rows.map((d, i) => `<tr>${rank(i)}<td>${esc(d.deviceName)}</td><td>${esc(d.os)}</td><td class="ar">${fmt(d.riskScore)}</td><td>${esc(d.lastLogonUser || DASH)}</td><td>${esc(Array.isArray(d.ip) ? d.ip.join(', ') : DASH)}</td></tr>`).join('');
   return page(
     `${shead('04', 'High-Risk Devices', 'Top 10 devices by risk score.')}
+     ${dataNotice(model, 'highRiskDevices')}
      <table class="kv"><thead><tr><th class="rk">#</th><th>Device</th><th>OS</th><th class="ar">Risk</th><th>Last logon user</th><th>IP</th></tr></thead><tbody>${body}</tbody></table>`,
     pg,
     total,
@@ -184,6 +186,7 @@ function highRiskUsers(model: ReportModel, pg: number, total: number): string {
   const body = rows.length === 0 ? emptyRow(4, 'No high-risk users returned.') : rows.map((u, i) => `<tr>${rank(i)}<td>${esc(u.userName)}</td><td>${esc(u.userPrincipalName || DASH)}</td><td class="ar">${fmt(u.riskScore)}</td></tr>`).join('');
   return page(
     `${shead('05', 'High-Risk Users', 'Top 10 users by risk score.')}
+     ${dataNotice(model, 'highRiskUsers')}
      <table class="kv"><thead><tr><th class="rk">#</th><th>User</th><th>UPN</th><th class="ar">Risk score</th></tr></thead><tbody>${body}</tbody></table>`,
     pg,
     total,
@@ -213,6 +216,7 @@ function vulnerableDevices(model: ReportModel, pg: number, total: number): strin
   const body = rows.length === 0 ? emptyRow(5, 'No vulnerable devices returned.') : rows.map((d, i) => `<tr>${rank(i)}<td>${esc(d.deviceName)}</td><td>${levelTag(d.criticality)}</td><td class="ar">${fmt(d.cveCount)}</td><td>${day(d.lastScannedDateTime)}</td></tr>`).join('');
   return page(
     `${shead('07', 'Most Vulnerable Devices', 'Top 10 devices by CVE count.')}
+     ${dataNotice(model, 'vulnerableDevices')}
      <table class="kv"><thead><tr><th class="rk">#</th><th>Device</th><th>Criticality</th><th class="ar">CVE count</th><th>Last scanned</th></tr></thead><tbody>${body}</tbody></table>`,
     pg,
     total,
@@ -245,6 +249,7 @@ function attackSurface(model: ReportModel, pg: number, total: number): string {
 
   return page(
     `${shead('08', 'Attack Surface Exposure', 'Reachable assets & misconfigurations.')}
+     ${dataNotice(model, 'globalFqdns')}${dataNotice(model, 'publicIps')}${dataNotice(model, 'cloudAssets')}
      <h3>Internet-facing assets</h3>
      <table class="kv"><thead><tr><th class="rk">#</th><th>FQDN / public IP</th><th class="ar">Open services</th><th class="ar">Risk score</th><th>Criticality</th></tr></thead><tbody>${ifaceBody}</tbody></table>
      <h3>Misconfigurations</h3>
@@ -260,6 +265,7 @@ function indicatorEvents(model: ReportModel, pg: number, total: number): string 
   const body = rows.length === 0 ? emptyRow(6, 'No account-compromise or anomaly events returned.') : rows.map((e, i) => `<tr>${rank(i)}<td>${esc(e.name)}</td><td>${esc(e.kind)}</td><td>${levelTag(e.riskLevel)}</td><td>${esc(e.assetName || DASH)}</td><td>${day(e.detectedDateTime)}</td></tr>`).join('');
   return page(
     `${shead('09', 'Account Compromise & Anomaly', 'Identity & behavioural indicators.')}
+     ${dataNotice(model, 'riskIndicatorEvents')}
      <table class="kv"><thead><tr><th class="rk">#</th><th>Indicator</th><th>Type</th><th>Risk level</th><th>Affected asset</th><th>Detected</th></tr></thead><tbody>${body}</tbody></table>`,
     pg,
     total,

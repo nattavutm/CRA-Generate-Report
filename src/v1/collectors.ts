@@ -28,41 +28,41 @@ function sortCves(items: InternetFacingCve[], top: number): InternetFacingCve[] 
 }
 
 export async function getInternetFacingCves(client: V1Client, top = 50): Promise<InternetFacingCve[]> {
-  const res = await client.fetchJson<ListResponse<InternetFacingCve>>('/v3.0/asrm/internetFacingAssetVulnerabilities', { query: { top } });
+  const res = await client.fetchJson<ListResponse<InternetFacingCve>>('/v3.0/asrm/internetFacingAssetVulnerabilities');
   return sortCves(res.items ?? [], top);
 }
 
 export async function getInternalCves(client: V1Client, top = 50): Promise<InternetFacingCve[]> {
-  const res = await client.fetchJson<ListResponse<InternetFacingCve>>('/v3.0/asrm/internalAssetVulnerabilities', { query: { top } });
+  const res = await client.fetchJson<ListResponse<InternetFacingCve>>('/v3.0/asrm/internalAssetVulnerabilities');
   return sortCves(res.items ?? [], top);
 }
 
 export function getDomainAccounts(client: V1Client, cap = 20): Promise<DomainAccount[]> {
-  return client.paginate<DomainAccount>('/v3.0/asrm/attackSurfaceDomainAccounts', { query: { top: 200 } }, cap);
+  return client.paginate<DomainAccount>('/v3.0/asrm/attackSurfaceDomainAccounts', {}, cap);
 }
 
 export async function getHighRiskDevices(client: V1Client, top = 20): Promise<HighRiskDevice[]> {
-  const res = await client.fetchJson<ListResponse<HighRiskDevice>>('/v3.0/asrm/highRiskDevices', { query: { top } });
+  const res = await client.fetchJson<ListResponse<HighRiskDevice>>('/v3.0/asrm/highRiskDevices');
   return (res.items ?? []).slice().sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0)).slice(0, top);
 }
 
 export async function getHighRiskUsers(client: V1Client, top = 20): Promise<HighRiskUser[]> {
-  const res = await client.fetchJson<ListResponse<HighRiskUser>>('/v3.0/asrm/highRiskUsers', { query: { top } });
+  const res = await client.fetchJson<ListResponse<HighRiskUser>>('/v3.0/asrm/highRiskUsers');
   return (res.items ?? []).slice().sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0)).slice(0, top);
 }
 
 export async function getPublicIpAddresses(client: V1Client, top = 20): Promise<PublicIpAsset[]> {
-  const res = await client.fetchJson<ListResponse<PublicIpAsset>>('/v3.0/asrm/attackSurfacePublicIpAddresses', { query: { top } });
+  const res = await client.fetchJson<ListResponse<PublicIpAsset>>('/v3.0/asrm/attackSurfacePublicIpAddresses');
   return (res.items ?? []).slice().sort((a, b) => (b.latestRiskScore ?? 0) - (a.latestRiskScore ?? 0)).slice(0, top);
 }
 
 export async function getCloudAssets(client: V1Client, top = 20): Promise<CloudAsset[]> {
-  const res = await client.fetchJson<ListResponse<CloudAsset>>('/v3.0/asrm/attackSurfaceCloudAssets', { query: { top } });
+  const res = await client.fetchJson<ListResponse<CloudAsset>>('/v3.0/asrm/attackSurfaceCloudAssets');
   return (res.items ?? []).slice().sort((a, b) => (b.latestRiskScore ?? 0) - (a.latestRiskScore ?? 0)).slice(0, top);
 }
 
 export async function getAssetGroups(client: V1Client, top = 20): Promise<AssetGroup[]> {
-  const res = await client.fetchJson<ListResponse<AssetGroup>>('/v3.0/asrm/assetGroups', { query: { top } });
+  const res = await client.fetchJson<ListResponse<AssetGroup>>('/v3.0/asrm/assetGroups');
   return (res.items ?? []).slice().sort((a, b) => (b.riskIndex ?? 0) - (a.riskIndex ?? 0)).slice(0, top);
 }
 
@@ -75,7 +75,7 @@ interface RawVulnDevice {
   lastScannedDateTime?: string;
 }
 export async function getVulnerableDevices(client: V1Client, top = 20): Promise<VulnerableDevice[]> {
-  const res = await client.fetchJson<ListResponse<RawVulnDevice>>('/v3.0/asrm/vulnerableDevices', { query: { top } });
+  const res = await client.fetchJson<ListResponse<RawVulnDevice>>('/v3.0/asrm/vulnerableDevices');
   return (res.items ?? [])
     .map((d) => ({
       id: d.id,
@@ -116,7 +116,7 @@ export async function getRiskIndicatorEvents(client: V1Client, top = 10): Promis
 }
 
 export async function getGlobalFqdns(client: V1Client, top = 20): Promise<GlobalFqdn[]> {
-  const res = await client.fetchJson<ListResponse<GlobalFqdn>>('/v3.0/asrm/attackSurfaceGlobalFqdns', { query: { top } });
+  const res = await client.fetchJson<ListResponse<GlobalFqdn>>('/v3.0/asrm/attackSurfaceGlobalFqdns');
   return (res.items ?? []).slice().sort((a, b) => (b.latestRiskScore ?? 0) - (a.latestRiskScore ?? 0)).slice(0, top);
 }
 
