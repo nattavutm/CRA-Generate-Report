@@ -114,6 +114,44 @@ export interface CloudAsset {
   protectionStatus?: string;
 }
 
+export interface AssetGroup {
+  id: string;
+  name: string;
+  assetCount?: number;
+  riskIndex?: number;
+  riskLevel?: string;
+}
+
+export interface VulnerableDevice {
+  id: string;
+  deviceName: string;
+  criticality?: string;
+  cveCount: number;
+  ip?: string[];
+  lastScannedDateTime?: string;
+}
+
+export interface RiskIndicatorEvent {
+  id: string;
+  name: string;
+  riskLevel?: string;
+  assetName?: string;
+  assetType?: string;
+  detectedDateTime?: string;
+  kind: 'Account compromise' | 'Anomaly';
+}
+
+export interface GlobalFqdn {
+  id: string;
+  fqdn: string;
+  rootDomain?: string;
+  ipAddresses?: string[];
+  latestRiskScore?: number;
+  criticality?: string;
+  provider?: string;
+  services?: unknown[];
+}
+
 export interface AlertSummary {
   name: string;
   severity: string;
@@ -174,6 +212,10 @@ export interface LiveData {
   topAccounts: DomainAccount[];
   publicIps: PublicIpAsset[];
   cloudAssets: CloudAsset[];
+  assetGroups: AssetGroup[];
+  vulnerableDevices: VulnerableDevice[];
+  riskIndicatorEvents: RiskIndicatorEvent[];
+  globalFqdns: GlobalFqdn[];
   highRiskDevices: HighRiskDevice[];
   highRiskUsers: HighRiskUser[];
   staleAccountCount: number | null;

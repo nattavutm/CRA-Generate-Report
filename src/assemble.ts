@@ -11,6 +11,10 @@ import {
   getHighRiskUsers,
   getPublicIpAddresses,
   getCloudAssets,
+  getAssetGroups,
+  getVulnerableDevices,
+  getRiskIndicatorEvents,
+  getGlobalFqdns,
   getWorkbenchAlerts,
 } from './v1/collectors';
 import type { ReportConfig, ReportModel, LiveData } from './types';
@@ -25,17 +29,22 @@ export async function assembleModel(client: V1Client, config: ReportConfig): Pro
     return null;
   };
 
-  const [posture, cves, internalCves, accounts, devices, users, publicIps, cloudAssets, alerts] = await Promise.all([
-    getSecurityPosture(client).catch(fail('securityPosture')),
-    getInternetFacingCves(client, 50).catch((e) => (fail('internetFacingCves')(e), [])),
-    getInternalCves(client, 50).catch((e) => (fail('internalCves')(e), [])),
-    getDomainAccounts(client, 20).catch(fail('domainAccounts')),
-    getHighRiskDevices(client, 20).catch(() => []),
-    getHighRiskUsers(client, 20).catch(() => []),
-    getPublicIpAddresses(client, 20).catch(() => []),
-    getCloudAssets(client, 20).catch(() => []),
-    getWorkbenchAlerts(client, config.workbench ?? {}, 50).catch((e) => (fail('alerts')(e), [])),
-  ]);
+  const [posture, cves, internalCves, accounts, devices, users, publicIps, cloudAssets, assetGroups, vulnDevices, riskEvents2, fqdns, alerts] =
+    await Promise.all([
+      getSecurityPosture(client).catch(fail('securityPosture')),
+      getInternetFacingCves(client, 50).catch((e) => (fail('internetFacingCves')(e), [])),
+      getInternalCves(client, 50).catch((e) => (fail('internalCves')(e), [])),
+      getDomainAccounts(client, 20).catch(fail('domainAccounts')),
+      getHighRiskDevices(client, 20).catch(() => []),
+      getHighRiskUsers(client, 20).catch(() => []),
+      getPublicIpAddresses(client, 20).catch(() => []),
+      getCloudAssets(client, 20).catch(() => []),
+      getAssetGroups(client, 20).catch(() => []),
+      getVulnerableDevices(client, 20).catch(() => []),
+      getRiskIndicatorEvents(client, 10).catch(() => []),
+      getGlobalFqdns(client, 20).catch(() => []),
+      getWorkbenchAlerts(client, config.workbench ?? {}, 50).catch((e) => (fail('alerts')(e), [])),
+    ]);
 
   const topAccounts = (accounts ?? [])
     .slice()
@@ -126,6 +135,10 @@ export async function assembleModel(client: V1Client, config: ReportConfig): Pro
     topAccounts,
     publicIps: publicIps ?? [],
     cloudAssets: cloudAssets ?? [],
+    assetGroups: assetGroups ?? [],
+    vulnerableDevices: vulnDevices ?? [],
+    riskIndicatorEvents: riskEvents2 ?? [],
+    globalFqdns: fqdns ?? [],
     highRiskDevices: devices ?? [],
     highRiskUsers: users ?? [],
     staleAccountCount,

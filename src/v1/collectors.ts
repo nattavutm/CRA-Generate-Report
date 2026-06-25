@@ -10,6 +10,10 @@ import type {
   HighRiskUser,
   PublicIpAsset,
   CloudAsset,
+  AssetGroup,
+  VulnerableDevice,
+  RiskIndicatorEvent,
+  GlobalFqdn,
   AlertSummary,
 } from '../types';
 
@@ -54,6 +58,65 @@ export async function getPublicIpAddresses(client: V1Client, top = 20): Promise<
 
 export async function getCloudAssets(client: V1Client, top = 20): Promise<CloudAsset[]> {
   const res = await client.fetchJson<ListResponse<CloudAsset>>('/v3.0/asrm/attackSurfaceCloudAssets', { query: { top } });
+  return (res.items ?? []).slice().sort((a, b) => (b.latestRiskScore ?? 0) - (a.latestRiskScore ?? 0)).slice(0, top);
+}
+
+export async function getAssetGroups(client: V1Client, top = 20): Promise<AssetGroup[]> {
+  const res = await client.fetchJson<ListResponse<AssetGroup>>('/v3.0/asrm/assetGroups', { query: { top } });
+  return (res.items ?? []).slice().sort((a, b) => (b.riskIndex ?? 0) - (a.riskIndex ?? 0)).slice(0, top);
+}
+
+interface RawVulnDevice {
+  id: string;
+  deviceName: string;
+  criticality?: string;
+  cveRecords?: unknown[];
+  ip?: string[];
+  lastScannedDateTime?: string;
+}
+export async function getVulnerableDevices(client: V1Client, top = 20): Promise<VulnerableDevice[]> {
+  const res = await client.fetchJson<ListResponse<RawVulnDevice>>('/v3.0/asrm/vulnerableDevices', { query: { top } });
+  return (res.items ?? [])
+    .map((d) => ({
+      id: d.id,
+      deviceName: d.deviceName,
+      criticality: d.criticality,
+      cveCount: Array.isArray(d.cveRecords) ? d.cveRecords.length : 0,
+      ip: d.ip,
+      lastScannedDateTime: d.lastScannedDateTime,
+    }))
+    .sort((a, b) => b.cveCount - a.cveCount)
+    .slice(0, top);
+}
+
+interface RawRiskEvent {
+  id: string;
+  name: string;
+  riskLevel?: string;
+  assetName?: string;
+  assetType?: string;
+  detectedDateTime?: string;
+}
+// Merge account-compromise + anomaly indicator events into one Top-N feed.
+export async function getRiskIndicatorEvents(client: V1Client, top = 10): Promise<RiskIndicatorEvent[]> {
+  const map: Array<[string, RiskIndicatorEvent['kind']]> = [
+    ['/v3.0/asrm/accountCompromiseRiskIndicatorEvents', 'Account compromise'],
+    ['/v3.0/asrm/anomalyDetectionRiskIndicatorEvents', 'Anomaly'],
+  ];
+  const batches = await Promise.all(
+    map.map(async ([path, kind]) => {
+      const res = await client.fetchJson<ListResponse<RawRiskEvent>>(path, { query: { top: 50 } }).catch(() => ({ items: [] }) as ListResponse<RawRiskEvent>);
+      return (res.items ?? []).map((e) => ({ ...e, kind }));
+    }),
+  );
+  return batches
+    .flat()
+    .sort((a, b) => Date.parse(b.detectedDateTime ?? '') - Date.parse(a.detectedDateTime ?? ''))
+    .slice(0, top);
+}
+
+export async function getGlobalFqdns(client: V1Client, top = 20): Promise<GlobalFqdn[]> {
+  const res = await client.fetchJson<ListResponse<GlobalFqdn>>('/v3.0/asrm/attackSurfaceGlobalFqdns', { query: { top } });
   return (res.items ?? []).slice().sort((a, b) => (b.latestRiskScore ?? 0) - (a.latestRiskScore ?? 0)).slice(0, top);
 }
 

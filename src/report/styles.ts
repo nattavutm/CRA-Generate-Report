@@ -139,6 +139,7 @@ tbody td { padding: 16px; border-bottom: 1px solid var(--line); vertical-align: 
 .kv td { font-size: 12px; color: var(--ink); }
 .ar { text-align: right; font-variant-numeric: tabular-nums; }
 th.ar { text-align: right; }
+.kv td.rk, .kv th.rk { width: 30px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 700; }
 
 /* trend table */
 .trend td { text-align: center; font-weight: 700; color: var(--ink); font-size: 14px; }
