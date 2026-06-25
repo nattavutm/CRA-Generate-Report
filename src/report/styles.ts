@@ -84,7 +84,21 @@ p { margin: 0 0 11px; }
 .cover-meta .k { color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: .3em; text-transform: uppercase; }
 .cover-meta .v { font-size: 17px; font-weight: 800; margin-top: 10px; color: var(--ink); }
 
+/* ---------- risk index hero (exec summary) ---------- */
+.riskhero { display: grid; grid-template-columns: 280px 1fr; gap: 18px; margin: 8px 0 18px; align-items: stretch; }
+.idxbox { border: 1px solid var(--line); border-radius: 8px; padding: 18px; background: #fafbfc; }
+.idxnum { font-size: 62px; font-weight: 800; line-height: 1; letter-spacing: -2px; }
+.idxnum .of { font-size: 20px; font-weight: 700; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
+.idxnum.low { color: var(--green); } .idxnum.medium { color: #d97706; } .idxnum.high { color: var(--accent); } .idxnum.na { color: var(--muted); }
+.idxlabel { font-size: 14px; font-weight: 800; margin-top: 8px; }
+.idxlabel.low { color: var(--green); } .idxlabel.medium { color: #d97706; } .idxlabel.high { color: var(--accent); } .idxlabel.na { color: var(--muted); }
+.cats { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.catrow { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 12px; color: var(--body); }
+
 /* ---------- metric cards (exec summary) ---------- */
+.cards.two { grid-template-columns: 1fr 1fr; border-radius: 8px; margin: 0; }
+.cards.two .card:nth-child(3), .cards.two .card:nth-child(4) { border-top: 1px solid var(--line); }
+.cards.two .card:nth-child(3) { border-left: none; }
 .cards { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; margin: 6px 0 22px; }
 .card { padding: 18px 18px 20px; border-left: 1px solid var(--line); background: #fafbfc; }
 .card:first-child { border-left: none; }

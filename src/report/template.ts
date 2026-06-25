@@ -115,21 +115,46 @@ function cover(model: ReportModel): string {
   </div>`;
 }
 
+// Overall Cyber Risk Index → level band (matches the Vision One dashboard label).
+function indexLevel(n: number | null): { key: string; label: string } {
+  if (n === null || Number.isNaN(n)) return { key: 'na', label: 'No data' };
+  if (n < 30) return { key: 'low', label: 'Low risk' };
+  if (n < 70) return { key: 'medium', label: 'Medium risk' };
+  return { key: 'high', label: 'High risk' };
+}
+
 function execSummary(model: ReportModel, pg: number, total: number): string {
   const l = model.live;
-  const cards =
-    card(fmt(l.riskIndex), 'Risk Index — Latest', true) +
-    card(l.cve?.mttpDays != null ? `${l.cve.mttpDays}d` : DASH, 'Mean Time to Patch') +
-    card(pct(l.coverageRate), 'VA Coverage') +
-    card(fmt(l.staleAccountCount), 'Stale Accounts', true);
+  const lvl = indexLevel(l.riskIndex);
+  const catRow = (name: string, level: string) =>
+    `<div class="catrow"><span>${name}</span>${levelTag(level)}</div>`;
+  const hero = `<div class="riskhero">
+    <div class="idxbox">
+      <div class="eyebrow gray" style="margin-bottom:10px">Cyber Risk Index</div>
+      <div class="idxnum ${lvl.key}">${fmt(l.riskIndex)}<span class="of">/100</span></div>
+      <div class="idxlabel ${lvl.key}">${esc(lvl.label)}</div>
+      <div class="cats">
+        <div class="eyebrow gray" style="margin-bottom:6px">Contributing categories</div>
+        ${catRow('Exposure', l.categoryLevels.exposure)}
+        ${catRow('Attack', l.categoryLevels.attack)}
+        ${catRow('Security Configuration', l.categoryLevels.securityConfiguration)}
+      </div>
+    </div>
+    <div class="cards two">
+      ${card(fmt(l.cve?.count ?? null), 'Highly-Exploitable CVEs', true)}
+      ${card(fmt(l.alerts.length || null), 'XDR Detections')}
+      ${card(pct(l.coverageRate), 'VA Coverage')}
+      ${card(fmt(l.staleAccountCount), 'Stale Accounts', true)}
+    </div>
+  </div>`;
   const intro = model.config.executiveSummary?.trim()
     ? paras(model.config.executiveSummary)
-    : `<p>This advisory reflects the latest Trend Vision One™ pull${l.createdDateTime ? ` captured ${esc(l.createdDateTime.slice(0, 10))}` : ''}. The metrics below are read live from Attack Surface Risk Management, Workbench, and account telemetry.</p>`;
+    : `<p>This advisory reflects the latest Trend Vision One™ pull${l.createdDateTime ? ` captured ${esc(l.createdDateTime.slice(0, 10))}` : ''}. The Cyber Risk Index and contributing categories below are read live from Attack Surface Risk Management.</p>`;
   return `<div class="page">${HEADER}
     ${shead('01', 'Executive Summary', 'Risk posture, in one read.')}
     ${dataNotice(model, 'securityPosture')}
     ${intro}
-    <div class="cards">${cards}</div>
+    ${hero}
     ${model.config.whatChanged?.length ? `<h3>What changed this cycle</h3>${blist(model.config.whatChanged)}` : ''}
     ${footer(pg, total)}
   </div>`;
