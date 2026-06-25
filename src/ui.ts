@@ -178,7 +178,11 @@ function buildConfig(){
   };
 }
 function status(msg,kind){ const s=$('#status'); s.textContent=msg; s.className='show '+kind; }
-async function post(path,cfg){ return fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(cfg)}); }
+async function post(path,cfg){
+  const h={'content-type':'application/json'};
+  const tok=val('v1token').trim(); if(tok) h['X-V1-Token']=tok; // sent once; never stored/logged
+  return fetch(path,{method:'POST',headers:h,body:JSON.stringify(cfg)});
+}
 
 $('#pdfBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; status('Pulling live Vision One data and rendering PDF…','work');
   try{ const r=await post('/api/report',c); if(!r.ok){ status('Failed: '+(await r.text()),'err'); return; }
@@ -231,7 +235,13 @@ $('#draftBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; statu
 <header><span class="dot"></span><h1>Cyber Risk Advisory — Report Generator</h1></header>
 <main>
   <div id="status"></div>
-  <form id="f">
+  <form id="f" autocomplete="off">
+    <fieldset><legend>Vision One access</legend>
+      <label>API token (Bearer) — used once for this report, not saved</label>
+      <input name="v1token" type="password" autocomplete="off" placeholder="Paste your Vision One API token">
+      <p class="hint">Held in the browser only while this page is open; sent once with the request and never stored or logged. Leave blank to use the server's V1_API_TOKEN secret instead.</p>
+    </fieldset>
+
     <fieldset><legend>Engagement</legend>
       <div class="grid2">
         <div><label>Customer name *</label><input name="customerName" required placeholder="Acme Corp"></div>

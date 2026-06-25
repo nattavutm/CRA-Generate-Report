@@ -38,9 +38,12 @@ function validateConfig(body: unknown): ReportConfig {
   };
 }
 
-function clientFor(env: Env, config: ReportConfig): V1Client {
-  if (!env.V1_API_TOKEN) throw new Error('V1_API_TOKEN is not configured');
-  return new V1Client(env.V1_API_TOKEN, config.region || env.V1_REGION || 'sg');
+// Token precedence: per-request header (entered in the form, used once, never stored)
+// → V1_API_TOKEN secret. The token is never logged or echoed into any response.
+function clientFor(env: Env, config: ReportConfig, requestToken?: string): V1Client {
+  const token = (requestToken ?? '').trim() || env.V1_API_TOKEN;
+  if (!token) throw new Error('No Vision One token. Enter it in the form, or set the V1_API_TOKEN secret.');
+  return new V1Client(token, config.region || env.V1_REGION || 'sg');
 }
 
 // ---------- UI ----------
@@ -50,7 +53,7 @@ app.get('/', (c) => c.html(renderForm(Object.keys(REGION_BASE_URLS), c.env.V1_RE
 app.post('/api/preview', async (c) => {
   try {
     const config = validateConfig(await c.req.json());
-    const model = await assembleModel(clientFor(c.env, config), config);
+    const model = await assembleModel(clientFor(c.env, config, c.req.header('X-V1-Token')), config);
     return c.html(renderReport(model));
   } catch (e) {
     return c.text(e instanceof Error ? e.message : 'Unknown error', 400);
@@ -66,7 +69,7 @@ app.post('/api/report', async (c) => {
     return c.text(e instanceof Error ? e.message : 'Bad request', 400);
   }
   try {
-    const model = await assembleModel(clientFor(c.env, config), config);
+    const model = await assembleModel(clientFor(c.env, config, c.req.header('X-V1-Token')), config);
     const html = renderReport(model);
     const pdf = await renderPdf(c.env, html);
 
@@ -92,7 +95,7 @@ app.post('/api/report', async (c) => {
 app.post('/api/draft', async (c) => {
   try {
     const config = validateConfig(await c.req.json());
-    const model = await assembleModel(clientFor(c.env, config), config);
+    const model = await assembleModel(clientFor(c.env, config, c.req.header('X-V1-Token')), config);
     const bullets = await draftWhatChanged(c.env, model);
     return c.json({ bullets });
   } catch (e) {
