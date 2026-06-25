@@ -69,31 +69,37 @@ function buildConfig(){
     workbench: workbenchRange()
   };
 }
-function status(msg,kind){ const s=$('#status'); s.textContent=msg; s.className='show '+kind; }
+function status(msg,kind){ const s=$('#status'); s.className='show '+kind; s.innerHTML=(kind==='work'?'<span class="spin"></span>':'')+String(msg).replace(/</g,'&lt;'); }
+let _busyBtn=null,_busyHtml='';
+function busy(on,sel,label){
+  ['#pdfBtn','#previewBtn','#draftBtn','#addRec'].forEach(s=>{ const b=$(s); if(b) b.disabled=on; });
+  if(on){ _busyBtn=$(sel); if(_busyBtn){ _busyHtml=_busyBtn.innerHTML; _busyBtn.innerHTML='<span class="spin"></span>'+(label||'Working…'); } }
+  else if(_busyBtn){ _busyBtn.innerHTML=_busyHtml; _busyBtn=null; }
+}
 async function post(path,cfg){
   const h={'content-type':'application/json'};
   const tok=val('v1token').trim(); if(tok) h['X-V1-Token']=tok; // sent once; never stored/logged
   return fetch(path,{method:'POST',headers:h,body:JSON.stringify(cfg)});
 }
 
-$('#pdfBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; status('Pulling live Vision One data and rendering PDF…','work');
+$('#pdfBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; busy(true,'#pdfBtn','Generating…'); status('Pulling live Vision One data and rendering PDF…','work');
   try{ const r=await post('/api/report',c); if(!r.ok){ status('Failed: '+(await r.text()),'err'); return; }
     const b=await r.blob(), u=URL.createObjectURL(b), a=document.createElement('a'); a.href=u; a.download=(c.customerName||'cra')+'-report.pdf'; a.click(); URL.revokeObjectURL(u); status('PDF generated.','ok');
-  }catch(e){ status('Error: '+e.message,'err'); } };
+  }catch(e){ status('Error: '+e.message,'err'); } finally{ busy(false); } };
 
 $('#previewBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return;
   const w=window.open('','_blank'); // open synchronously within the click gesture (avoids popup block)
-  status('Pulling live data and building HTML preview…','work');
+  busy(true,'#previewBtn','Building…'); status('Pulling live data and building HTML preview…','work');
   try{ const r=await post('/api/preview',c); if(!r.ok){ if(w)w.close(); status('Failed: '+(await r.text()),'err'); return; }
     const h=await r.text();
     if(w){ w.document.open(); w.document.write(h); w.document.close(); status('Preview opened in new tab.','ok'); }
     else { const u=URL.createObjectURL(new Blob([h],{type:'text/html'})); const a=document.createElement('a'); a.href=u; a.target='_blank'; a.rel='noopener'; a.click(); status('Preview opened (allow pop-ups if it did not).','ok'); }
-  }catch(e){ if(w)w.close(); status('Error: '+e.message,'err'); } };
+  }catch(e){ if(w)w.close(); status('Error: '+e.message,'err'); } finally{ busy(false); } };
 
-$('#draftBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; status('Asking AI to draft "What changed" (review before use)…','work');
+$('#draftBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; busy(true,'#draftBtn','Drafting…'); status('Asking AI to draft "What changed" (review before use)…','work');
   try{ const r=await post('/api/draft',c); if(!r.ok){ status('Draft failed: '+(await r.text()),'err'); return; }
     const j=await r.json(); $('[name=whatChanged]').value=(j.bullets||[]).join('\\n'); status('AI draft inserted — review and edit before generating.','ok');
-  }catch(e){ status('Error: '+e.message,'err'); } };
+  }catch(e){ status('Error: '+e.message,'err'); } finally{ busy(false); } };
 `;
 
   return `<!doctype html>
@@ -173,6 +179,14 @@ $('#draftBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; statu
   button.link{background:none;border:none;color:var(--accent);padding:8px 0;font-size:12.5px;}
   button.link:hover{text-decoration:underline;}
   button.del{padding:8px 12px;font-size:12px;color:var(--accent-700);}
+  button:disabled{opacity:.6;cursor:default;}
+  button:disabled:active{transform:none;}
+
+  /* ---- spinner ---- */
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(0,0,0,.18);border-top-color:var(--accent);border-radius:50%;vertical-align:-2px;margin-right:8px;animation:spin .7s linear infinite;}
+  button.primary .spin{border-color:rgba(255,255,255,.45);border-top-color:#fff;}
+  #status.work .spin{border-color:rgba(138,90,6,.28);border-top-color:#8a5a06;}
 
   /* ---- sticky action bar ---- */
   .actionbar{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-top:1px solid var(--line);}
