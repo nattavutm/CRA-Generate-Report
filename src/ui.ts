@@ -8,6 +8,12 @@ export function renderForm(regions: string[], defaultRegion: string): string {
     .map((r) => `<option value="${r}"${r === defaultRegion ? ' selected' : ''}>${r.toUpperCase()}</option>`)
     .join('');
 
+  // TrendAI spark mark (white, for the dark bar) and a small lock glyph.
+  const SPARK =
+    '<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 0c1.1 6 4.9 9.7 12 12-7.1 2.3-10.9 6-12 12-1.1-6-4.9-9.7-12-12C7.1 9.7 10.9 6 12 0z" fill="#E11C24"/></svg>';
+  const LOCK =
+    '<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 10V8a6 6 0 0112 0v2h1a1 1 0 011 1v9a1 1 0 01-1 1H5a1 1 0 01-1-1v-9a1 1 0 011-1h1zm2 0h8V8a4 4 0 00-8 0v2z" fill="#136a31"/></svg>';
+
   // Client script. Backticks and ${ } are escaped (\` , \${) so they survive server interpolation.
   const script = `
 const SESSIONS = ['Day 1 — Kickoff & Baseline','Day 30 — First Review','Day 60 — Mid-Cycle Review','Day 90 — Outcome Review'];
@@ -94,44 +100,109 @@ $('#draftBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; statu
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CRA Report Generator</title>
 <style>
-  :root{--accent:#E11C24;--ink:#14151a;--muted:#6b7280;--line:#e4e6ea;}
-  *{box-sizing:border-box;} body{margin:0;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--ink);background:#f4f5f7;}
-  header{background:#050608;color:#fff;padding:16px 28px;display:flex;align-items:center;gap:10px;}
-  header .dot{width:12px;height:12px;border-radius:3px;background:var(--accent);} header h1{font-size:15px;margin:0;font-weight:800;letter-spacing:.3px;}
-  main{max-width:940px;margin:22px auto;padding:0 20px 80px;}
-  .intro{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--muted);margin:0 0 16px;}
-  fieldset{border:1px solid var(--line);border-radius:10px;background:#fff;margin:0 0 16px;padding:14px 18px;}
-  legend{font-weight:800;padding:0 6px;color:var(--accent);font-size:13px;letter-spacing:.04em;text-transform:uppercase;}
-  label{display:block;font-size:11px;color:var(--muted);margin:9px 0 3px;font-weight:600;}
-  input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:13px;}
-  textarea{min-height:60px;resize:vertical;line-height:1.5;}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;}
-  .row3{display:grid;grid-template-columns:1fr 2fr auto;gap:8px;align-items:center;margin-bottom:8px;}
-  .row4{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:8px;margin-bottom:8px;}
-  .reccard{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;background:#fafbfc;}
-  .reccard input,.reccard textarea{margin-bottom:6px;}
-  .hint{font-size:11px;color:var(--muted);margin:4px 0 0;}
-  .actions{display:flex;gap:12px;flex-wrap:wrap;position:sticky;bottom:0;background:#f4f5f7;padding:14px 0;border-top:1px solid var(--line);}
-  button{font:inherit;font-weight:700;border:none;border-radius:8px;padding:11px 18px;cursor:pointer;font-size:13px;}
-  button.primary{background:var(--accent);color:#fff;} button.ghost{background:#fff;color:var(--ink);border:1px solid var(--line);}
-  button.del{padding:7px 12px;}
-  #status{font-size:13px;padding:10px 14px;border-radius:8px;margin:0 0 14px;display:none;} #status.show{display:block;}
-  #status.err{background:#fcdedf;color:#9a1015;} #status.ok{background:#e6f4ea;color:#176c33;} #status.work{background:#fef3c7;color:#92520a;}
-  .colhdr{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:8px;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;}
+  :root{
+    --accent:#E11C24; --accent-700:#b3151c;
+    --ink:#15161b; --body:#41454d; --muted:#7a7f88;
+    --line:#e6e8ec; --line-soft:#eef0f3; --panel:#ffffff;
+    --bg:#f2f3f6; --dark:#0a0b0f; --dark-2:#15171d;
+    --ring:rgba(225,28,36,.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;color:var(--body);background:var(--bg);-webkit-font-smoothing:antialiased;}
+  ::selection{background:rgba(225,28,36,.16);}
+
+  /* ---- top brand bar ---- */
+  .topbar{background:var(--dark);color:#fff;}
+  .topbar-in{max-width:1000px;margin:0 auto;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-.2px;}
+  .brand .tm{font-size:9px;vertical-align:super;color:#9aa0ab;font-weight:600;}
+  .topbar .eyebrow{font-size:10px;letter-spacing:.34em;text-transform:uppercase;color:#8c919c;font-weight:700;}
+
+  /* ---- hero ---- */
+  .hero{background:var(--dark);color:#fff;border-bottom:3px solid var(--accent);}
+  .hero-in{max-width:1000px;margin:0 auto;padding:8px 24px 40px;}
+  .hero h1{font-size:34px;line-height:1.08;font-weight:800;letter-spacing:-.6px;margin:0;}
+  .hero p{margin:12px 0 0;color:#b9bdc6;font-size:14px;max-width:60ch;line-height:1.6;}
+
+  /* ---- layout ---- */
+  main{max-width:1000px;margin:0 auto;padding:0 24px 140px;}
+  .stack{margin-top:-22px;}
+  #status{font-size:13px;padding:12px 16px;border-radius:10px;margin:0 0 16px;display:none;font-weight:500;}
+  #status.show{display:block;}
+  #status.err{background:#fce4e5;color:#9a1015;border:1px solid #f3c2c5;}
+  #status.ok{background:#e7f5ec;color:#136a31;border:1px solid #c2e6cf;}
+  #status.work{background:#fdf3d6;color:#8a5a06;border:1px solid #f1dca0;}
+
+  /* ---- panels ---- */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin:0 0 14px;box-shadow:0 1px 2px rgba(16,18,22,.03);}
+  .phead{display:flex;align-items:center;gap:12px;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid var(--line-soft);}
+  .pnum{font-size:12px;font-weight:800;letter-spacing:.2em;color:var(--accent);font-variant-numeric:tabular-nums;}
+  .phead h2{font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);margin:0;}
+  .phead .tag{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--line-soft);padding:4px 9px;border-radius:999px;}
+
+  label{display:block;font-size:11px;color:var(--muted);margin:12px 0 5px;font-weight:700;letter-spacing:.02em;}
+  label:first-child{margin-top:0;}
+  input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;transition:border-color .12s,box-shadow .12s;}
+  input::placeholder,textarea::placeholder{color:#aeb3bc;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--ring);}
+  input:disabled{background:#f6f7f9;color:var(--muted);}
+  textarea{min-height:66px;resize:vertical;line-height:1.55;}
+  select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%237a7f88' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;}
+  .row3{display:grid;grid-template-columns:1fr 2fr auto;gap:10px;align-items:center;margin-bottom:10px;}
+  .row4{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+  .reccard{border:1px solid var(--line);border-radius:11px;padding:14px;margin-bottom:12px;background:#fbfbfc;}
+  .reccard input,.reccard textarea{margin-bottom:8px;background:#fff;}
+  .colhdr{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:10px;font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.12em;margin-bottom:7px;}
+  .hint{font-size:11.5px;color:var(--muted);margin:7px 0 0;line-height:1.5;}
+
+  /* ---- token field accent ---- */
+  .tokenwrap{display:flex;gap:10px;align-items:flex-start;}
+  .tokenwrap input{flex:1;}
+  .secure{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#136a31;background:#e7f5ec;border:1px solid #c2e6cf;padding:0 10px;border-radius:9px;height:40px;white-space:nowrap;}
+
+  /* ---- buttons ---- */
+  button{font:inherit;font-weight:700;border:none;border-radius:10px;padding:12px 20px;cursor:pointer;font-size:13.5px;transition:background .12s,border-color .12s,transform .04s;}
+  button:active{transform:translateY(1px);}
+  button.primary{background:var(--accent);color:#fff;box-shadow:0 1px 2px rgba(225,28,36,.3);}
+  button.primary:hover{background:var(--accent-700);}
+  button.ghost{background:#fff;color:var(--ink);border:1px solid var(--line);}
+  button.ghost:hover{border-color:#cbd0d8;background:#fbfbfc;}
+  button.link{background:none;border:none;color:var(--accent);padding:8px 0;font-size:12.5px;}
+  button.link:hover{text-decoration:underline;}
+  button.del{padding:8px 12px;font-size:12px;color:var(--accent-700);}
+
+  /* ---- sticky action bar ---- */
+  .actionbar{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-top:1px solid var(--line);}
+  .actionbar-in{max-width:1000px;margin:0 auto;padding:14px 24px;display:flex;gap:12px;align-items:center;}
+  .actionbar .note{font-size:11.5px;color:var(--muted);margin-left:auto;max-width:42ch;text-align:right;line-height:1.4;}
 </style></head>
 <body>
-<header><span class="dot"></span><h1>Cyber Risk Advisory — Report Generator</h1></header>
-<main>
-  <div id="status"></div>
-  <div class="intro">All metrics, tables, and findings in the report are pulled <b>live from the Trend Vision One API</b> (current snapshot). The fields below only cover what the API can't provide — engagement labels, the session schedule, and optional commentary.</div>
-  <form id="f" autocomplete="off">
-    <fieldset><legend>Vision One access</legend>
-      <label>API token (Bearer) — used once for this report, not saved</label>
-      <input name="v1token" type="password" autocomplete="off" placeholder="Paste your Vision One API token">
-      <p class="hint">Held in the browser only while this page is open; sent once with the request, never stored or logged. Leave blank to use the server's V1_API_TOKEN secret instead. Pick the Region matching your Vision One tenant's data center.</p>
-    </fieldset>
+<header class="topbar"><div class="topbar-in">
+  <span class="brand">${SPARK}TrendAI<span class="tm">™</span></span>
+  <span class="eyebrow">Cyber Risk Advisory</span>
+</div></header>
+<div class="hero"><div class="hero-in">
+  <h1>Report Generator</h1>
+  <p>Pull a live Trend Vision One™ snapshot and assemble the eight-section Cyber Risk Advisory PDF. Fields below cover only what the API can't provide — engagement labels, the session schedule, and optional commentary.</p>
+</div></div>
 
-    <fieldset><legend>Engagement</legend>
+<main>
+  <form id="f" autocomplete="off" class="stack">
+    <div id="status"></div>
+
+    <section class="panel"><div class="phead"><span class="pnum">01</span><h2>Vision One Access</h2><span class="tag">Used once · not saved</span></div>
+      <label>API token (Bearer)</label>
+      <div class="tokenwrap">
+        <input name="v1token" type="password" autocomplete="off" placeholder="Paste your Vision One API token">
+        <span class="secure">${LOCK} In-browser only</span>
+      </div>
+      <p class="hint">Held in the browser only while this page is open; sent once with the request, never stored or logged. Leave blank to use the server's V1_API_TOKEN secret. Choose the Region matching your Vision One tenant's data center.</p>
+    </section>
+
+    <section class="panel"><div class="phead"><span class="pnum">02</span><h2>Engagement</h2></div>
       <div class="grid2">
         <div><label>Customer name *</label><input name="customerName" required placeholder="Acme Corp"></div>
         <div><label>Region *</label><select name="region">${regionOptions}</select></div>
@@ -139,9 +210,9 @@ $('#draftBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; statu
         <div><label>Document</label><input name="docId" value="CRA-2026 · v1.0"></div>
       </div>
       <label>Cover subtitle</label><textarea name="coverSubtitle" placeholder="Leave blank for the default subtitle"></textarea>
-    </fieldset>
+    </section>
 
-    <fieldset><legend>Workbench alert window</legend>
+    <section class="panel"><div class="phead"><span class="pnum">03</span><h2>Workbench Alert Window</h2></div>
       <label>Pull XDR detections from the last</label>
       <select name="wbDays">
         <option value="1">1 day</option>
@@ -150,35 +221,36 @@ $('#draftBtn').onclick = async ()=>{ const c=buildConfig(); if(!c) return; statu
         <option value="30" selected>30 days</option>
       </select>
       <p class="hint">Bounds the live XDR detection pull for the Attack Overview section.</p>
-    </fieldset>
+    </section>
 
-    <fieldset><legend>Commentary (optional)</legend>
+    <section class="panel"><div class="phead"><span class="pnum">04</span><h2>Commentary</h2><span class="tag">Optional</span></div>
       <label>Executive summary intro — leave blank to auto-describe the live pull</label>
       <textarea name="executiveSummary"></textarea>
       <label>What changed this cycle (one bullet per line)</label>
       <textarea name="whatChanged"></textarea>
-      <button type="button" class="ghost" id="draftBtn" style="margin-top:8px">✨ Draft with AI from live data (review before use)</button>
-      <label style="margin-top:12px">Data-source notes</label>
+      <button type="button" class="link" id="draftBtn">Draft with AI from live data → review before use</button>
+      <label>Data-source notes</label>
       <textarea name="dataSourceNotes" placeholder="e.g. Qualys disabled this cycle"></textarea>
-    </fieldset>
+    </section>
 
-    <fieldset><legend>Recommendations (optional override)</legend>
-      <p class="hint" style="margin:0 0 8px">Leave empty to auto-derive findings from the live data. Add rows only to override.</p>
+    <section class="panel"><div class="phead"><span class="pnum">05</span><h2>Recommendations</h2><span class="tag">Optional override</span></div>
+      <p class="hint" style="margin:0 0 12px">Leave empty to auto-derive findings from the live data. Add rows only to override.</p>
       <div id="recs"></div>
       <button type="button" class="ghost" id="addRec">+ Add finding</button>
-    </fieldset>
+    </section>
 
-    <fieldset><legend>Sessions &amp; Cadence</legend>
+    <section class="panel"><div class="phead"><span class="pnum">06</span><h2>Sessions &amp; Cadence</h2></div>
       <div class="colhdr"><span>Session</span><span>Date</span><span>Time</span><span>Status</span></div>
       <div id="sessions"></div>
-    </fieldset>
-
-    <div class="actions">
-      <button type="button" class="primary" id="pdfBtn">Generate PDF</button>
-      <button type="button" class="ghost" id="previewBtn">Preview HTML</button>
-    </div>
+    </section>
   </form>
 </main>
+
+<div class="actionbar"><div class="actionbar-in">
+  <button type="button" class="primary" id="pdfBtn">Generate PDF</button>
+  <button type="button" class="ghost" id="previewBtn">Preview HTML</button>
+  <span class="note">All metrics, tables and findings are pulled live from Trend Vision One.</span>
+</div></div>
 <script>${script}</script>
 </body></html>`;
 }
